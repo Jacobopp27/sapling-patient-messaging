@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (154 tests, about 1 s).
+To check it works without the UI: `npm test` (156 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -75,7 +75,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 154 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 156 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
