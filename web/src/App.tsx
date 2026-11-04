@@ -136,7 +136,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <strong className="title">Sapling patient messaging · {state.sharedDemo ? 'live demo' : 'local demo'}</strong>
+        <strong className="title">Sapling patient messaging · {state.hosted ? 'live demo' : 'local demo'}</strong>
         <div className="controls">
           <label className="field">
             <span>Scenario clock</span>
@@ -166,9 +166,9 @@ export function App() {
         </div>
       </header>
 
-      {state.sharedDemo && (
+      {state.hosted && (
         <div className="shared-note">
-          Shared public demo: everyone who opens this page sees the same conversation with the synthetic patient Alex Morgan. Press Reset to start over.
+          Live demo with the synthetic patient Alex Morgan. This conversation is yours: it's kept for this browser, and other visitors have their own. Reset clears only yours.
         </div>
       )}
       {error && <div className="error">{error}</div>}

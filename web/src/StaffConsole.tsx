@@ -54,7 +54,7 @@ export function StaffConsole({ state, busy, scriptStep, onSend, onShowSources, o
         <textarea
           value={draft}
           rows={3}
-          placeholder={`To ${state.patient.phone}. Saved in the demo ${state.sharedDemo ? 'database' : 'thread'}; no SMS is sent.`}
+          placeholder={`To ${state.patient.phone}. Saved in the demo ${state.hosted ? 'database' : 'thread'}; no SMS is sent.`}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && send()}
         />

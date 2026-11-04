@@ -72,7 +72,7 @@ describe('HTTP API', () => {
 
   async function serve() {
     const svc = openService(tempDbFile());
-    const server = createApp((fn) => fn(svc)).listen(0);
+    const server = createApp((_thread, fn) => fn(svc)).listen(0);
     servers.push(server);
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
     const call = (method: string, path: string, body?: unknown) =>
@@ -86,7 +86,7 @@ describe('HTTP API', () => {
     const state = await res.json();
     expect(res.status).toBe(200);
     expect(state.messages.map((m: { author: string }) => m.author)).toEqual(['patient', 'agent']);
-    expect(state.sharedDemo).toBe(false);
+    expect(state.hosted).toBe(false);
   });
 
   it('rejects bad input with a 400 and an unknown request with a 404', async () => {
@@ -100,12 +100,13 @@ describe('HTTP API', () => {
 const PG = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!PG)('Postgres (TEST_DATABASE_URL)', () => {
+  const T = 'test-thread-main';
   it('plays the script one transaction per message, survives a restart, and keeps one of each request', async () => {
     let db = postgresStore(PG!);
-    await db.run(async (store) => store.reset());
+    await db.run(T, async (store) => store.reset());
     const steps = SCRIPT.slice(0, 12);
     for (const s of steps) {
-      await db.run(async (store) => {
+      await db.run(T, async (store) => {
         const svc = service(store);
         if (s.author === 'clinic') svc.sendClinicMessage(s.body);
         else await svc.receivePatientMessage(s.body);
@@ -114,20 +115,20 @@ describe.skipIf(!PG)('Postgres (TEST_DATABASE_URL)', () => {
     await db.close();
     db = postgresStore(PG!); // the restart: a new pool, nothing kept in memory
 
-    const reply = await db.run(async (store) => (await service(store).receivePatientMessage(SCRIPT[12].body)).reply);
+    const reply = await db.run(T, async (store) => (await service(store).receivePatientMessage(SCRIPT[12].body)).reply);
     const lines = reply.body.split('\n');
     expect(lines[1]).toBe('1) A BP recheck with Dr. Priya Lee on Thursday, Nov 12, in the afternoon (a request, not booked yet)');
     expect(lines[2]).toBe('2) A refill of Lisinopril 10 mg, once daily, at Elm Street Pharmacy');
     expect(lines[3]).toBe('3) Your question for a clinician about your readings (around 150/95)');
 
-    const types = await db.run(async (store) => store.listRequests(pid).map((r) => r.type));
+    const types = await db.run(T, async (store) => store.listRequests(pid).map((r) => r.type));
     expect(types).toEqual(['appointment_request', 'refill', 'clinical_question', 'emergency']);
     await db.close();
   });
 
   it('keeps what staff resolved (booked for Thu 1:30) across a restart', async () => {
     let db = postgresStore(PG!);
-    await db.run(async (store) => {
+    await db.run(T, async (store) => {
       store.reset();
       const svc = service(store);
       svc.sendClinicMessage(SCRIPT[0].body);
@@ -137,7 +138,7 @@ describe.skipIf(!PG)('Postgres (TEST_DATABASE_URL)', () => {
     });
     await db.close();
     db = postgresStore(PG!);
-    const reply = await db.run(async (store) => (await service(store).receivePatientMessage('is it booked yet?')).reply);
+    const reply = await db.run(T, async (store) => (await service(store).receivePatientMessage('is it booked yet?')).reply);
     expect(reply.body).toMatch(/Clinic staff booked your BP recheck .* Thursday, Nov 12 at 1:30 p\.m\./);
     await db.close();
   });
@@ -145,14 +146,39 @@ describe.skipIf(!PG)('Postgres (TEST_DATABASE_URL)', () => {
   it('serialises two messages sent at the same moment (no lost or duplicate rows)', async () => {
     const db1 = postgresStore(PG!);
     const db2 = postgresStore(PG!); // two serverless instances
-    await db1.run(async (store) => store.reset());
+    await db1.run(T, async (store) => store.reset());
     await Promise.all([
-      db1.run(async (store) => { await service(store).receivePatientMessage('can I get a refill on my BP med'); }),
-      db2.run(async (store) => { await service(store).receivePatientMessage('can I get a refill on my BP med'); }),
+      db1.run(T, async (store) => { await service(store).receivePatientMessage('can I get a refill on my BP med'); }),
+      db2.run(T, async (store) => { await service(store).receivePatientMessage('can I get a refill on my BP med'); }),
     ]);
-    const { messages, requests } = await db1.run(async (store) => ({ messages: store.listMessages(pid), requests: store.listRequests(pid) }));
+    const { messages, requests } = await db1.run(T, async (store) => ({ messages: store.listMessages(pid), requests: store.listRequests(pid) }));
     expect(messages.map((m) => m.id)).toEqual([1, 2, 3, 4]);
     expect(requests.map((r) => r.type)).toEqual(['refill']); // the second message updated the first refill
     await Promise.all([db1.close(), db2.close()]);
+  });
+
+  it('keeps each visitor in their own thread: separate messages, separate ids, reset only clears yours', async () => {
+    const db = postgresStore(PG!);
+    const javen = 'test-thread-javen', justin = 'test-thread-justin';
+    await db.run(javen, async (store) => store.reset());
+    await db.run(justin, async (store) => store.reset());
+    await db.run(javen, async (store) => { await service(store).receivePatientMessage('what time do you close today?'); });
+    await db.run(justin, async (store) => {
+      const svc = service(store);
+      svc.sendClinicMessage(SCRIPT[0].body);
+      await svc.receivePatientMessage('yes');
+      await svc.receivePatientMessage('Tuesday afternoon works');
+    });
+    const read = (thread: string) => db.run(thread, async (store) => ({ messages: store.listMessages(pid), requests: store.listRequests(pid) }));
+    const [a, b] = [await read(javen), await read(justin)];
+    expect(a.messages.map((m) => m.body)).toEqual(['what time do you close today?', expect.stringContaining('We close at 5:00 p.m.')]);
+    expect(a.requests).toEqual([]);
+    expect(b.messages.map((m) => m.id)).toEqual([1, 2, 3, 4, 5]); // ids start at 1 in every thread
+    expect(b.requests.map((r) => r.type)).toEqual(['appointment_request']);
+
+    await db.run(javen, async (store) => store.reset());
+    expect((await read(javen)).messages).toEqual([]);
+    expect((await read(justin)).messages).toHaveLength(5);
+    await db.close();
   });
 });

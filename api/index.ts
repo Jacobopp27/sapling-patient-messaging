@@ -1,5 +1,5 @@
 // Vercel entry point: the same Express API, backed by Postgres (Neon) instead of the SQLite file.
-// Each request is one locked transaction (see server/postgres.ts). DATABASE_URL comes from the
+// Each request is one locked transaction on the visitor's own thread (see server/postgres.ts). DATABASE_URL comes from the
 // Neon integration; without it the function refuses to start rather than lose data silently.
 import { createApp } from '../server/app.js';
 import { loadClinicData } from '../server/data.js';
@@ -12,4 +12,4 @@ if (!url) throw new Error('DATABASE_URL is not set: connect a Neon Postgres data
 const db = postgresStore(url);
 const data = loadClinicData();
 
-export default createApp((fn) => db.run((store) => fn(new ConversationService(store, data))), { sharedDemo: true });
+export default createApp((thread, fn) => db.run(thread, (store) => fn(new ConversationService(store, data))), { hosted: true });

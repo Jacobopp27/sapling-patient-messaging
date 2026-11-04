@@ -1,6 +1,7 @@
 // HTTP API for the demo UI. Thin: every route delegates to ConversationService / the store.
 // Routes get the service through `withService`, so the same API runs on the local SQLite file
-// (one long-lived service) and on the hosted demo (one Postgres transaction per request).
+// (one long-lived service) and on the hosted demo (one Postgres transaction per request, on the
+// visitor's own thread).
 import express, { type ErrorRequestHandler } from 'express';
 import { hasClaudeKey } from './agent/claudeInterpreter.js';
 import { missingFields, REQUEST_TYPES, type RequestStatus } from './requests.js';
@@ -9,12 +10,16 @@ import type { ConversationService } from './service.js';
 
 const STATUSES: RequestStatus[] = ['pending_staff', 'in_progress', 'completed', 'cancelled'];
 
-export type WithService = <T>(fn: (service: ConversationService) => Promise<T>) => Promise<T>;
+/** `thread` is the visitor's demo thread on the hosted site; the local demo has just one and ignores it. */
+export type WithService = <T>(thread: string, fn: (service: ConversationService) => Promise<T>) => Promise<T>;
 
 export interface AppOptions {
-  /** The hosted demo: one shared thread for every visitor (shown in the UI). */
-  sharedDemo?: boolean;
+  /** The hosted demo: each browser gets its own thread (shown in the UI). */
+  hosted?: boolean;
 }
+
+/** The browser's thread id (X-Demo-Thread), generated and kept in its local storage. */
+const THREAD_ID = /^[A-Za-z0-9_-]{8,64}$/;
 
 class HttpError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
@@ -24,6 +29,13 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
   const app = express();
   app.use(express.json());
 
+  const thread = (req: express.Request): string => {
+    const id = req.get('x-demo-thread');
+    if (id === undefined) return 'default';
+    if (!THREAD_ID.test(id)) throw new HttpError(400, 'X-Demo-Thread must be 8–64 letters, digits, - or _');
+    return id;
+  };
+
   const state = ({ store, data }: ConversationService) => {
     const p = data.patient;
     return {
@@ -31,7 +43,7 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
       /** The scenario clock right now: the configured time plus real time elapsed since it was set. */
       clock: store.now(),
       claudeAvailable: hasClaudeKey(),
-      sharedDemo: Boolean(options.sharedDemo),
+      hosted: Boolean(options.hosted),
       patient: { id: p.patient_id, name: p.name, phone: p.phone },
       messages: store.listMessages(p.patient_id),
       requests: store.listRequests(p.patient_id).map((r) => ({
@@ -42,8 +54,8 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
     };
   };
 
-  app.get('/api/state', async (_req, res) => {
-    res.json(await withService(async (service) => state(service)));
+  app.get('/api/state', async (req, res) => {
+    res.json(await withService(thread(req), async (service) => state(service)));
   });
 
   app.post('/api/messages', async (req, res) => {
@@ -51,7 +63,7 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
     if (typeof body !== 'string' || !body.trim()) throw new HttpError(400, 'body is required');
     if (replyTo !== undefined && !Number.isInteger(replyTo)) throw new HttpError(400, 'replyTo must be a message id');
     if (author !== 'clinic' && author !== 'patient') throw new HttpError(400, 'author must be clinic or patient');
-    res.json(await withService(async (service) => {
+    res.json(await withService(thread(req), async (service) => {
       if (author === 'clinic') service.sendClinicMessage(body.trim(), replyTo);
       else await service.receivePatientMessage(body.trim(), replyTo);
       return state(service);
@@ -62,7 +74,7 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
     const { now, agentMode } = req.body ?? {};
     if (now !== undefined && Number.isNaN(Date.parse(now))) throw new HttpError(400, 'now must be an ISO timestamp');
     if (agentMode !== undefined && !['local', 'claude'].includes(agentMode)) throw new HttpError(400, 'agentMode must be local or claude');
-    res.json(await withService(async (service) => {
+    res.json(await withService(thread(req), async (service) => {
       service.store.updateSettings({ now, agentMode });
       return state(service);
     }));
@@ -73,7 +85,7 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
     const id = Number(req.params.id);
     const { status } = req.body ?? {};
     if (!STATUSES.includes(status)) throw new HttpError(400, `status must be one of ${STATUSES.join(', ')}`);
-    res.json(await withService(async (service) => {
+    res.json(await withService(thread(req), async (service) => {
       if (!service.store.getRequest(id)) throw new HttpError(404, 'not found');
       service.store.updateRequest(id, { status });
       return state(service);
@@ -84,7 +96,7 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
   // refill approved, ...) and optionally text Alex. The agent then reports that outcome truthfully.
   app.post('/api/requests/:id/resolve', async (req, res) => {
     const id = Number(req.params.id);
-    res.json(await withService(async (service) => {
+    res.json(await withService(thread(req), async (service) => {
       try {
         resolveRequest(service, id, req.body ?? {});
       } catch (err) {
@@ -95,8 +107,8 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
     }));
   });
 
-  app.post('/api/reset', async (_req, res) => {
-    res.json(await withService(async (service) => {
+  app.post('/api/reset', async (req, res) => {
+    res.json(await withService(thread(req), async (service) => {
       const { store } = service;
       const { now, agentMode } = store.getSettings();
       store.reset();
