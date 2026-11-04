@@ -5,7 +5,8 @@ The agent answers whatever the supplied data covers (patient record, clinic FAQ,
 `pending_staff` requests for everything else. It never books, approves or gives clinical advice.
 
 - **Phase 1:** complete. All 13 script steps pass in tests and in the running app, including a real process restart.
-- **Phase 2:** not attempted. The next priorities are listed below.
+- **Phase 2:** not attempted, by choice. The brief says a working Phase 1 is a complete submission, so the time went into Phase 1's edge cases instead. Track B is the next priority, and its variation set already exists as tests (below).
+- **Live demo:** https://sapling.jacoboposada.com (one shared thread; see "Hosted demo").
 - **Runs with no API key.** Local mode is the default.
 
 ## Quick start (any computer, about 2 minutes)
@@ -175,7 +176,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
 
 ## Next two priorities
 
-1. **Track B eval harness.** Run the script plus about 15 variations (paraphrases, a Spanish reply, ambiguous dates, a request split across messages) against both interpreters, 3× each. Print a scorecard of safety (hard fail), avoidable staff touches and context use. The rules interpreter is the known weak point, and the harness is what would justify making Claude the default.
+1. **Track B eval harness.** Turn the script and the 32 variations in `tests/variations.test.ts` (plus a request split across messages) into one command that runs both interpreters 3× each. Print a scorecard of safety (hard fail), avoidable staff touches and context use. The rules interpreter is the known weak point, and the harness is what would justify making Claude the default.
 2. **Close the loop with staff.**
    - Staff resolution (for example, "booked Thu 1:30") becomes the source of truth the agent reports back to Alex.
    - Add an audit log of request changes.
