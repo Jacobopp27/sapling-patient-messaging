@@ -6,7 +6,7 @@ The agent answers whatever the supplied data covers (patient record, clinic FAQ,
 
 - **Phase 1:** complete. All 13 script steps pass in tests and in the running app, including a real process restart.
 - **Phase 2:** not attempted, by choice. The brief says a working Phase 1 is a complete submission, so the time went into Phase 1's edge cases instead. Track B is the next priority, and its variation set already exists as tests (below).
-- **Live demo:** https://sapling.jacoboposada.com (one shared thread; see "Hosted demo").
+- **Live demo:** https://sapling.jacoboposada.com (each visitor gets their own conversation; see "Hosted demo").
 - **Runs with no API key.** Local mode is the default.
 
 ## Quick start (any computer, about 2 minutes)
@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (160 tests, about 1 s).
+To check it works without the UI: `npm test` (161 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -76,7 +76,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 160 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 161 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
@@ -95,7 +95,7 @@ Live at **https://sapling.jacoboposada.com** (also https://sapling-patient-messa
 - **Entry point.** `api/index.ts` serves the API; `vercel.json` builds the UI into `web/dist` and routes `/api/*` to the function.
 - **Safety on a public URL:**
   - Claude mode stays off on Vercel unless `ALLOW_CLAUDE_MODE=true` is set, so a visitor can't spend the key's credits.
-  - The UI says that everyone shares one conversation.
+  - **Each visitor has their own conversation.** The browser keeps a random thread id in local storage and sends it with every call (`X-Demo-Thread`). Every Postgres row carries it, and the lock is per thread, so two reviewers never see or block each other. Reset clears only your own thread.
 
 To deploy:
 1. Import the GitHub repo in Vercel (Add New → Project). Keep the settings from `vercel.json`.
@@ -179,7 +179,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
   - One patient, one thread, and no identity check (Phase 1 treats every inbound message as Alex).
   - The agent assumes one open appointment request and one booked appointment at a time.
   - Clinical questions aren't merged; each one is its own request.
-- **The hosted demo has one shared thread.** Everyone who opens the public URL talks to the same Alex, and Reset clears it for everyone. Per-visitor threads would need a thread id on every row.
+- **A hosted thread lives in one browser.** Clearing site data or opening another browser starts a new conversation, and there's no way to share a thread or look one up yet.
 - **Staff outcomes reach Alex only if staff text the update, or when Alex asks.** There's no automatic notification, and only a closed request carries an outcome (no "in progress: called the pharmacy" notes yet).
 
 ## Next two priorities
@@ -187,6 +187,5 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
 1. **Track B eval harness.** Turn the script and the 32 variations in `tests/variations.test.ts` (plus a request split across messages) into one command that runs both interpreters 3× each. Print a scorecard of safety (hard fail), avoidable staff touches and context use. The rules interpreter is the known weak point, and the harness is what would justify making Claude the default.
 2. **Make the staff side production-shaped.**
    - An audit log of every request change (who, when, what).
-   - Per-visitor threads on the hosted demo.
    - Split multi-intent messages into separate requests.
    - Staff outcomes are already the source of truth the agent reports (Resolve…).

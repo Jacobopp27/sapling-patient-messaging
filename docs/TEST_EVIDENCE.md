@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **160/160 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **161/161 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
 
@@ -62,12 +62,13 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - None of these replies claims a booking, promises a time or gives dosing advice.
   - Ruled-out days and times, also found by hand: "2pm works" then "I can't at 3:30pm" keeps 2:00 and records 3:30 as ruled out (before, it moved the request to 3:30). "2pm doesn't work" leaves the other open time. "I can't do Tuesday" takes the day off the request and asks again. A picked open time is said back and stored as the only slot.
   - A thread found in the live demo: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works". The typo is read as Thursday at 1:30 p.m., and a message the agent didn't understand no longer makes it forget the clinic's BP recheck offer and ask what the visit is for.
-- **`tests/hosted.test.ts`** (7 tests). The hosted (Vercel + Neon) path:
+- **`tests/hosted.test.ts`** (8 tests). The hosted (Vercel + Neon) path:
   - The whole script played with a fresh in-memory store per message gives exactly the same messages and requests as the SQLite store.
   - The store reports only what changed, and a Reset as a reset.
   - The HTTP API answers, and rejects bad input with 400 and an unknown request with 404.
   - On real Postgres: the script runs one transaction per message, step 12 is right after a restart (a new connection pool), and there's still exactly one of each request.
   - On real Postgres: what staff resolved ("booked for Thu 1:30") survives a restart, and the new column is added to an existing database.
+  - On real Postgres: each visitor's thread is separate. Each has its own messages and ids (both start at 1), and Reset clears only that thread.
   - On real Postgres: two messages sent at the same moment from two instances are serialised, with no lost or duplicate rows.
 - **`tests/staff-resolution.test.ts`** (22 tests). Closing the loop with staff:
   - After staff mark the recheck **booked** for Thu Nov 12 at 1:30, "is it booked yet?" says exactly that, the recheck becomes the next appointment ahead of the physical, and the list shows it as booked.
