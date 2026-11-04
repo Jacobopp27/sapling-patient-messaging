@@ -27,8 +27,8 @@ To check it works without the UI: `npm test` (161 tests, about 1 s).
 ## Walk through the scenario (about 5 minutes)
 
 1. **Start clean.** Click **Reset**, then click it again to confirm. The scenario clock reads *Wed, Nov 4, 2026, 10:00 a.m. PT*.
-2. **The clinic writes first (step 0).** In the **clinic staff console** on the right, click **Fill script step 0**, then **Send to Alex**. The message appears on Alex's phone. Nothing is really sent.
-3. **Alex replies (steps 1–11).** On **Alex's phone** on the left, click **Fill script step N** and send it, one step at a time. Read each reply, and open **why?** under it to see what the agent understood, which data it used and what the safety checks decided. Requests appear under **Awaiting staff review**. Or click **Play script 0–11** to play them all.
+2. **The clinic writes first (step 0).** In the **clinic staff console** on the right, click **Use script step 0**, then **Send to Alex**. The message appears on Alex's phone. Nothing is really sent.
+3. **Alex replies (steps 1–11).** Under **Alex's phone** on the left, the next script step is shown: click **Use it** and send it, one step at a time. Read each reply, and open **why?** under it to see what the agent understood, which data it used and what the safety checks decided. Requests appear under **Awaiting staff review**. Or click **Play script** to play them all.
 4. **The restart (step 12).** Stop the server with Ctrl+C, run `npm run dev` again, reload the page and send step 12 ("what have I asked you for so far?"). The thread and the requests are still there.
 5. **Go off script.** Type your own messages as Alex, for example:
    - "can we move my physical to Thursday?"
@@ -56,13 +56,13 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 - **Swipe to reply:** drag a bubble to the right, or use the ↩ that appears on hover, to quote it. The agent then matches Alex's reply to *that* message instead of the latest one. For example, a "yes" swiped onto an older clinic offer still continues that offer.
 - **"Typing…":** the agent answers instantly, but the UI shows "typing…" for 2–3 s so the thread reads naturally. **Emergency replies are never delayed.**
 - **Automated, and says so:** assistant replies carry a small "automated" tag. A real SMS has no such tag, so the first automated reply in a thread also says it in the text ("This is Sapling Family Clinic's automated text assistant."). The emergency text is never changed.
-- **Fill script step N:** puts the next script message into the right box (step 0 in the staff console, the rest on Alex's phone).
-- **Play script 0–11:** resets the thread and plays steps 0–11. It and **Reset** ask for a second click to confirm (not a browser dialog, which some embedded browsers block silently).
+- **Next script step:** under the phone, "Use it" puts the next script message in Alex's box; step 0 is offered in the staff console ("Use script step 0").
+- **Play script:** resets the thread and plays steps 0–11. It and **Reset** ask for a second click to confirm (not a browser dialog, which some embedded browsers block silently).
 - **Step 12 (the restart):** stop the server with Ctrl+C, run `npm run dev` again, then send step 12.
-- **Scenario clock:** "now" is a setting, Wed Nov 4, 2026 10:00 PT by default. Edit the ISO value or use a preset, such as Sat 11:00, to see the hours answer change. The clock runs on from the time you set (so a later update gets a later `updated_at`), and Reset restarts it.
+- **Scenario clock:** "now" is a setting, Wed Nov 4, 2026 10:00 PT by default. Click the clock in the top bar for presets (after closing, a Saturday, Veterans Day) or any ISO time. It keeps running from the time you set, also shown in the phone's status bar, and Reset restarts it.
 - **Agent:** Local rules (default) or Claude, which needs `ANTHROPIC_API_KEY` (see `.env.example`).
-- **Agent activity (staff console):** how many of Alex's messages the agent answered from the data, how many needed a detail from Alex, how many filed or updated a request, and emergencies.
-- **Awaiting staff review (staff console):** each request shows its type, `patient_id`, `created_at` and `updated_at`, its fields, and whether staff can act without texting Alex. "Show the messages it came from" highlights them in the thread, "Show stored record" shows the row exactly as saved, and the status dropdown is the optional staff action.
+- **Clinic console, activity line:** how many of Alex's messages the agent answered from the data, how many needed a detail from Alex, how many filed or updated a request, and emergencies.
+- **Clinic console, worklist:** emergencies first, then open requests, then the ones staff closed. Each row shows a one-line summary and badges (Ready / Needs detail, status or outcome); open it to see its type, `patient_id`, `created_at` and `updated_at`, its fields, and whether staff can act without texting Alex. "Show the messages it came from" highlights them in the thread, "Show stored record" shows the row exactly as saved, and the status dropdown is the optional staff action.
 - **Resolve… (staff console):** staff record what actually happened, and that's what the agent reports from then on.
   - A visit: **Booked**, with the date, time and provider (prefilled from the matching open slots), or **Couldn't book**.
   - A refill: **Approved** or **Not approved**.
