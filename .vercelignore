@@ -1,0 +1,11 @@
+# Never upload these from a local `vercel deploy` (the Git integration only sees committed files).
+.env
+.claude/
+data/*.db
+data/*.db-*
+docs/walkthrough-notes.es.md
+Jacobo_Posada_CV_Python_FullStack.html
+flujo-demo.*
+video/
+node_modules/
+web/dist/

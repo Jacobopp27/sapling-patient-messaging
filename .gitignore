@@ -17,3 +17,5 @@ video/.hyperframes/
 video/.media/
 video/.thumbnails/
 video/.waveform-cache/
+.vercel
+.env*
