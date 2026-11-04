@@ -136,7 +136,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <strong className="title">Sapling patient messaging · local demo</strong>
+        <strong className="title">Sapling patient messaging · {state.sharedDemo ? 'live demo' : 'local demo'}</strong>
         <div className="controls">
           <label className="field">
             <span>Scenario clock</span>
