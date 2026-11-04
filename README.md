@@ -8,22 +8,50 @@ The agent answers whatever the supplied data covers (patient record, clinic FAQ,
 - **Phase 2:** not attempted. The next priorities are listed below.
 - **Runs with no API key.** Local mode is the default.
 
-## Setup and run
+## Quick start (any computer, about 2 minutes)
 
-Requires Node 22+.
+You need **Node.js 22 or newer** (check with `node --version`), npm (comes with Node) and git. No database server, no API key and no account: the demo runs locally on a SQLite file.
 
 ```bash
+git clone https://github.com/Jacobopp27/sapling-patient-messaging.git
+cd sapling-patient-messaging
 npm install
-npm run dev          # API on :3001, UI on http://localhost:5173
+npm run dev
 ```
 
-Open http://localhost:5173. Everything is stored in `data/app.db` (SQLite).
+Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
+
+To check it works without the UI: `npm test` (121 tests, about 2 s).
+
+## Walk through the scenario (about 5 minutes)
+
+1. **Start clean.** Click **Reset**, then click it again to confirm. The scenario clock reads *Wed, Nov 4, 2026, 10:00 a.m. PT*.
+2. **The clinic writes first (step 0).** In the **clinic staff console** on the right, click **Fill script step 0**, then **Send to Alex**. The message appears on Alex's phone. Nothing is really sent.
+3. **Alex replies (steps 1–11).** On **Alex's phone** on the left, click **Fill script step N** and send it, one step at a time. Read each reply, and open **why?** under it to see what the agent understood, which data it used and what the safety checks decided. Requests appear under **Awaiting staff review**. Or click **Play script 0–11** to play them all.
+4. **The restart (step 12).** Stop the server with Ctrl+C, run `npm run dev` again, reload the page and send step 12 ("what have I asked you for so far?"). The thread and the requests are still there.
+5. **Go off script.** Type your own messages as Alex, for example:
+   - "can we move my physical to Thursday?"
+   - "Wednesday morning" (Nov 11 is Veterans Day)
+   - "my chest feels tight"
+   - "who is my doctor?"
+
+   Use the clock presets (Sat 11:00, Wed 17:30) and ask "what time do you close today?".
+
+**If something goes wrong:**
+- **`node` is missing or older than 22:** install the LTS from https://nodejs.org, or run `nvm install 22`.
+- **`npm install` fails while building `better-sqlite3`:** a prebuilt binary normally downloads. On an unusual platform it compiles instead and needs build tools:
+  - macOS: `xcode-select --install`
+  - Linux: `build-essential`
+  - Windows: Visual Studio "Desktop development with C++"
+- **Port 3001 or 5173 is already in use:** stop the other app. The UI expects the API on 3001.
+- **Start over from nothing:** click Reset, or run `npm run reset`.
+- **Try Claude mode (optional):** copy `.env.example` to `.env`, set `ANTHROPIC_API_KEY`, restart, and choose **Claude** under Agent. Local rules remain the default.
 
 ### Simulating the conversation
 
 The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right, and the clinic on the left. As on a real phone, every clinic message comes from one sender (the clinic's number), whether staff or the assistant wrote it.
 
-- **Two sides, one page.** On the left, **Alex's phone**: type as Alex (treated as coming from the number on file). On the right, the **clinic staff console**: text Alex as staff (saved locally, nothing is sent), see what the agent handled, and work the request queue. There's no staff login: the spec lists authentication as not required, so the console is a role in the demo, not a permission boundary.
+- **Two sides, one page.** On the left, **Alex's phone**: type as Alex (treated as coming from the number on file). On the right, the **clinic staff console**: text Alex as staff (saved in the demo thread; no SMS is sent), see what the agent handled, and work the request queue. There's no staff login: the spec lists authentication as not required, so the console is a role in the demo, not a permission boundary.
 - **Swipe to reply:** drag a bubble to the right, or use the ↩ that appears on hover, to quote it. The agent then matches Alex's reply to *that* message instead of the latest one. For example, a "yes" swiped onto an older clinic offer still continues that offer.
 - **"Typing…":** the agent answers instantly, but the UI shows "typing…" for 2–3 s so the thread reads naturally. **Emergency replies are never delayed.**
 - **Automated, and says so:** assistant replies carry a small "automated" tag. A real SMS has no such tag, so the first automated reply in a thread also says it in the text ("This is Sapling Family Clinic's automated text assistant."). The emergency text is never changed.
