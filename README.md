@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (161 tests, about 1 s).
+To check it works without the UI: `npm test` (166 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -60,7 +60,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 - **Play script:** resets the thread and plays steps 0–11. It and **Reset** ask for a second click to confirm (not a browser dialog, which some embedded browsers block silently).
 - **Step 12 (the restart):** stop the server with Ctrl+C, run `npm run dev` again, then send step 12.
 - **Scenario clock:** "now" is a setting, Wed Nov 4, 2026 10:00 PT by default. Click the clock in the top bar for presets (after closing, a Saturday, Veterans Day) or any ISO time. It keeps running from the time you set, also shown in the phone's status bar, and Reset restarts it.
-- **Agent:** Local rules (default) or Claude, which needs `ANTHROPIC_API_KEY` (see `.env.example`).
+- **Agent:** Local rules (default) or Claude, which needs `ANTHROPIC_API_KEY` in `.env` (see `.env.example`). `CLAUDE_MODEL=claude-haiku-5-5` is the cheap, fast choice for this classification job.
 - **Clinic console, activity line:** how many of Alex's messages the agent answered from the data, how many needed a detail from Alex, how many filed or updated a request, and emergencies.
 - **Clinic console, worklist:** emergencies first, then open requests, then the ones staff closed. Each row shows a one-line summary and badges (Ready / Needs detail, status or outcome); open it to see its type, `patient_id`, `created_at` and `updated_at`, its fields, and whether staff can act without texting Alex. "Show the messages it came from" highlights them in the thread, "Show stored record" shows the row exactly as saved, and the status dropdown is the optional staff action.
 - **Resolve… (staff console):** staff record what actually happened, and that's what the agent reports from then on.
@@ -76,7 +76,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 161 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 166 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
@@ -172,7 +172,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
   - A message that rules one thing out and picks another ("I can't do Tuesday, Thursday works") only reads the first part.
 - **Bare weekdays are a best guess.** Answering the clinic's offer, "Thursday" means the Thursday with openings (Nov 12). With no offer in play, it means the next Thursday (Nov 5). The date is always said back so Alex can correct it, but the agent doesn't ask when the wording is ambiguous.
 - **Local emergency detection is a broad keyword list.** It's tuned to over-trigger, but it can miss unusual phrasing. Claude mode adds a semantic `possible_emergency` check on top, but never instead of the keywords.
-- **Claude mode was not run live in this environment** (no API key here). It's covered by contract tests that use fake interpreters: model failure falls back to rules, a model-flagged emergency is honoured, and the keyword guard runs before the model.
+- **Claude mode is verified on the script, not measured on variations.** With Claude Haiku 5.5 as the interpreter, all 13 script replies are identical to local mode ([docs/script-run-claude.md](docs/script-run-claude.md)), and it understands what the rules can't (Spanish, "I can't at 3:30", casual emergencies). How often it gets the 50 variations right isn't measured yet: that's the Track B harness.
 - **Closed days are weekends and federal holidays only.** Clinic-specific closures aren't in the data.
 - **No blood-pressure thresholds.** Emergencies are detected from symptoms, not numbers like 180/120. Choosing thresholds is a clinical decision that needs sign-off, so the readings go to a clinician as a clinical question.
 - **Simplified scope:**

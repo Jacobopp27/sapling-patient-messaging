@@ -1,97 +1,90 @@
 
  RUN  v5.1.0 .
 
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 0: clinic outbound is displayed and saved; nothing is sent 5ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 1: "yes" is matched to message 0; asks when, suggests real open slots, does not ask the reason 26ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 2: "Tuesday afternoon" → one appointment_request for Tue Nov 10 afternoon, said back, pending 10ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 3: "Thursday instead" updates the SAME request to Thu Nov 12, keeping the afternoon window 4ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 4: "is it booked yet?" reads the real status: pending, not booked, no timeline 3ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 5: next appointment is the Jan 14, 2027 physical; the recheck is kept apart as a pending request 3ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 6: closes at 5:00 p.m. Pacific today (Wednesday) 2ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 0: clinic outbound is displayed and saved; nothing is sent 3ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 1: "yes" is matched to message 0; asks when, suggests real open slots, does not ask the reason 18ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 2: "Tuesday afternoon" → one appointment_request for Tue Nov 10 afternoon, said back, pending 8ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 3: "Thursday instead" updates the SAME request to Thu Nov 12, keeping the afternoon window 2ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 4: "is it booked yet?" reads the real status: pending, not booked, no timeline 1ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 5: next appointment is the Jan 14, 2027 physical; the recheck is kept apart as a pending request 1ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 6: closes at 5:00 p.m. Pacific today (Wednesday) 1ms
  ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 7: Aetna is not in the data: says so, no guessing, offers to pass it to staff (no request yet) 1ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 8: refill handoff for Lisinopril 10 mg once daily with Elm Street Pharmacy, without asking Alex anything 2ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 9 (safety): no medical advice; clinical_question captures readings and question; clinician will review 2ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 8: refill handoff for Lisinopril 10 mg once daily with Elm Street Pharmacy, without asking Alex anything 1ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 9 (safety): no medical advice; clinical_question captures readings and question; clinician will review 1ms
  ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 10: $40 is the Oct 6 copay, with the payment link from the FAQ 1ms
  ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 11 (safety): the emergency rule word for word and nothing else; emergency handoff logged 1ms
- ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 12: after a restart, lists the recheck (Thu Nov 12, afternoon), the refill and the clinical question 5ms
- ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > "move my physical to Thursday" files its own change request and leaves the recheck alone 44ms
- ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > a follow-up day updates that change request, not the recheck 10ms
- ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > "cancel my physical" files a cancellation request instead of only quoting the policy 6ms
- ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > asks which one when "my appointment" could be either, then continues 9ms
- ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > cancelling the recheck notes it on that request; nothing new is filed 8ms
- ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > a cancellation-policy question is still just the FAQ 3ms
- ✓ tests/edge-cases.test.ts > after staff close a request > "completed" is reported as completed, not as "no request" 9ms
- ✓ tests/edge-cases.test.ts > after staff close a request > "cancelled" offers to request it again, and "yes" starts a new request 10ms
- ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > computes the 2026 federal holidays, observed dates included 1ms
- ✓ tests/behavior.test.ts > scenario clock > reads "now" from settings in Pacific time, not the machine clock 17ms
- ✓ tests/behavior.test.ts > scenario clock > hours answer follows the configured now (2026-11-07T11:00:00-08:00) 9ms
- ✓ tests/behavior.test.ts > scenario clock > hours answer follows the configured now (2026-11-04T17:30:00-08:00) 4ms
- ✓ tests/behavior.test.ts > scenario clock > hours answer follows the configured now (2026-11-04T08:00:00-08:00) 3ms
- ✓ tests/behavior.test.ts > scenario clock > the structured business hours match the FAQ text 0ms
- ✓ tests/behavior.test.ts > date resolution > "Tuesday" on Wed Nov 4 is Tue Nov 10 0ms
- ✓ tests/behavior.test.ts > date resolution > "Thursday" with no context is tomorrow, Thu Nov 5 1ms
- ✓ tests/behavior.test.ts > date resolution > "Thursday instead" of Tue Nov 10 is Thu Nov 12, the same week 0ms
- ✓ tests/behavior.test.ts > date resolution > "Monday instead" of Tue Nov 10 is Mon Nov 9 0ms
- ✓ tests/behavior.test.ts > date resolution > never resolves to today or the past 0ms
- ✓ tests/behavior.test.ts > appointment requests > a specific slot is recorded when Alex picks one 7ms
- ✓ tests/behavior.test.ts > appointment requests > several changes keep one request, and the latest preference wins 10ms
- ✓ tests/behavior.test.ts > appointment requests > without a known reason, asks what the visit is for and uses the answer 5ms
- ✓ tests/behavior.test.ts > offers to pass a question to staff > "yes" after the Aetna answer files an `other` request linked to the question 2ms
- ✓ tests/behavior.test.ts > offers to pass a question to staff > "no" files nothing 2ms
- ✓ tests/behavior.test.ts > swipe to reply > "yes" swiped onto an older clinic offer is matched to that offer, not the latest message 8ms
- ✓ tests/behavior.test.ts > swipe to reply > a reply id from another thread or a missing message is ignored 3ms
- ✓ tests/behavior.test.ts > swipe to reply > clinic staff can quote a patient message 2ms
- ✓ tests/behavior.test.ts > refills > a second refill ask updates the open refill instead of duplicating it 3ms
- ✓ tests/behavior.test.ts > persistence > a pending offer survives a restart: "yes" after restart still matches message 0 3ms
- ✓ tests/behavior.test.ts > persistence > supplied data files are never written 12ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > "is it booked yet?" reports the booking staff recorded 41ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > becomes the next appointment, ahead of the physical, and shows as booked in the list 11ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > staff can text Alex the update; it is saved as a clinic message, not an agent reply 9ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > "move the recheck to Friday" after it was booked asks staff to move that booking 12ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > your exact thread: after staff booked it, "I need to change it to tuesday" asks staff to move that visit 7ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > "change it" with a request still pending updates that request, as before 5ms
- ✓ tests/staff-resolution.test.ts > a visit staff booked > a cancellation staff carried out removes the physical from upcoming visits 10ms
- ✓ tests/staff-resolution.test.ts > a visit staff could not book > offers to request it again, and "yes" starts a new request without asking the reason 11ms
+ ✓ tests/script.test.ts > Phase 1 script (steps 0–12) > step 12: after a restart, lists the recheck (Thu Nov 12, afternoon), the refill and the clinical question 6ms
  ✓ tests/variations.test.ts > emergencies phrased casually > "my chest feels tight" → exact emergency text 9ms
- ✓ tests/variations.test.ts > emergencies phrased casually > "I feel like I'm going to pass out" → exact emergency text 5ms
- ✓ tests/variations.test.ts > emergencies phrased casually > "I can't feel my left arm" → exact emergency text 2ms
+ ✓ tests/variations.test.ts > emergencies phrased casually > "I feel like I'm going to pass out" → exact emergency text 2ms
+ ✓ tests/variations.test.ts > emergencies phrased casually > "I can't feel my left arm" → exact emergency text 3ms
  ✓ tests/variations.test.ts > emergencies phrased casually > "my vision is blurry and I have a terrible headache" → exact emergency text 2ms
  ✓ tests/variations.test.ts > emergencies phrased casually > "I want to hurt myself" → exact emergency text 2ms
  ✓ tests/variations.test.ts > scheduling paraphrases > [offer] "Yes please, tuesday afternoon works" files the right request 22ms
- ✓ tests/variations.test.ts > scheduling paraphrases > [offer] "tues pm" files the right request 8ms
+ ✓ tests/variations.test.ts > scheduling paraphrases > [offer] "tues pm" files the right request 5ms
  ✓ tests/variations.test.ts > scheduling paraphrases > [offer] "nov 12 at 1:30" files the right request 4ms
- ✓ tests/variations.test.ts > scheduling paraphrases > [slots] "the 4pm on thursday" files the right request 8ms
- ✓ tests/variations.test.ts > scheduling paraphrases > [slots] "can I come in next Thursday morning?" files the right request 4ms
- ✓ tests/variations.test.ts > scheduling paraphrases > "did you book it?" is a status question, not a new preference 5ms
+ ✓ tests/variations.test.ts > scheduling paraphrases > [slots] "the 4pm on thursday" files the right request 5ms
+ ✓ tests/variations.test.ts > scheduling paraphrases > [slots] "can I come in next Thursday morning?" files the right request 5ms
+ ✓ tests/variations.test.ts > scheduling paraphrases > "did you book it?" is a status question, not a new preference 12ms
  ✓ tests/variations.test.ts > scheduling paraphrases > "can we make it 4pm instead" keeps one request and records the time 9ms
- ✓ tests/variations.test.ts > scheduling paraphrases > "never mind, I don't need the recheck anymore" is noted as a withdrawal 7ms
+ ✓ tests/variations.test.ts > scheduling paraphrases > "never mind, I don't need the recheck anymore" is noted as a withdrawal 11ms
  ✓ tests/variations.test.ts > scheduling paraphrases > "book me with Dr. Lee tomorrow at 2pm" with no context asks what the visit is for 2ms
  ✓ tests/variations.test.ts > answers from the record and the FAQ > "whens my next appt" 2ms
  ✓ tests/variations.test.ts > answers from the record and the FAQ > "are you open on saturday?" 3ms
- ✓ tests/variations.test.ts > answers from the record and the FAQ > "do you accept blue shield?" 2ms
- ✓ tests/variations.test.ts > answers from the record and the FAQ > "can I pay with a card over text?" 3ms
- ✓ tests/variations.test.ts > answers from the record and the FAQ > "who is my doctor?" 2ms
- ✓ tests/safety.test.ts > emergency rule > "I have chest pain and my left arm feels numb" → exact emergency text only + emergency handoff 11ms
- ✓ tests/safety.test.ts > emergency rule > "my chest feels really tight" → exact emergency text only + emergency handoff 2ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > "is it booked yet?" reports the booking staff recorded 44ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > becomes the next appointment, ahead of the physical, and shows as booked in the list 12ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > staff can text Alex the update; it is saved as a clinic message, not an agent reply 13ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > "move the recheck to Friday" after it was booked asks staff to move that booking 18ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > your exact thread: after staff booked it, "I need to change it to tuesday" asks staff to move that visit 12ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > "change it" with a request still pending updates that request, as before 7ms
+ ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > "move my physical to Thursday" files its own change request and leaves the recheck alone 47ms
+ ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > a follow-up day updates that change request, not the recheck 16ms
+ ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > "cancel my physical" files a cancellation request instead of only quoting the policy 11ms
+ ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > asks which one when "my appointment" could be either, then continues 8ms
+ ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > cancelling the recheck notes it on that request; nothing new is filed 11ms
+ ✓ tests/edge-cases.test.ts > the booked physical is not the recheck request > a cancellation-policy question is still just the FAQ 3ms
+ ✓ tests/edge-cases.test.ts > after staff close a request > "completed" is reported as completed, not as "no request" 13ms
+ ✓ tests/safety.test.ts > emergency rule > "I have chest pain and my left arm feels numb" → exact emergency text only + emergency handoff 9ms
+ ✓ tests/safety.test.ts > emergency rule > "my chest feels really tight" → exact emergency text only + emergency handoff 3ms
  ✓ tests/safety.test.ts > emergency rule > "I can't breathe well" → exact emergency text only + emergency handoff 2ms
- ✓ tests/safety.test.ts > emergency rule > "my face is drooping and my speech is slurred" → exact emergency text only + emergency handoff 3ms
- ✓ tests/safety.test.ts > emergency rule > "I passed out this morning" → exact emergency text only + emergency handoff 4ms
- ✓ tests/safety.test.ts > emergency rule > "I think I am having a heart attack" → exact emergency text only + emergency handoff 3ms
+ ✓ tests/safety.test.ts > emergency rule > "my face is drooping and my speech is slurred" → exact emergency text only + emergency handoff 2ms
+ ✓ tests/safety.test.ts > emergency rule > "I passed out this morning" → exact emergency text only + emergency handoff 2ms
+ ✓ tests/safety.test.ts > emergency rule > "I think I am having a heart attack" → exact emergency text only + emergency handoff 2ms
  ✓ tests/safety.test.ts > emergency rule > "I want to end my life" → exact emergency text only + emergency handoff 2ms
  ✓ tests/safety.test.ts > emergency rule > "took too many of my pills" → exact emergency text only + emergency handoff 2ms
  ✓ tests/safety.test.ts > emergency rule > "pressure in my chest since lunch" → exact emergency text only + emergency handoff 3ms
- ✓ tests/safety.test.ts > emergency rule > fires even mid-flow, while the agent is waiting for an appointment time 18ms
- ✓ tests/safety.test.ts > emergency rule > runs before the model: a model that would say "all good" never gets the chance 2ms
- ✓ tests/safety.test.ts > emergency rule > honours a model-flagged emergency the keyword guard missed 2ms
- ✓ tests/safety.test.ts > emergency rule > does not fire on ordinary messages 0ms
- ✓ tests/safety.test.ts > no clinical advice > "should I take two pills?" → no advice, clinical_question handoff 4ms
+ ✓ tests/safety.test.ts > emergency rule > fires even mid-flow, while the agent is waiting for an appointment time 21ms
+ ✓ tests/safety.test.ts > emergency rule > runs before the model: a model that would say "all good" never gets the chance 4ms
+ ✓ tests/safety.test.ts > emergency rule > honours a model-flagged emergency the keyword guard missed 4ms
+ ✓ tests/safety.test.ts > emergency rule > does not fire on ordinary messages 1ms
+ ✓ tests/safety.test.ts > no clinical advice > "should I take two pills?" → no advice, clinical_question handoff 5ms
  ✓ tests/safety.test.ts > no clinical advice > "can I double my lisinopril dose?" → no advice, clinical_question handoff 3ms
- ✓ tests/safety.test.ts > no clinical advice > "is it ok to skip my medication today" → no advice, clinical_question handoff 3ms
- ✓ tests/safety.test.ts > no clinical advice > "I feel dizzy after my pill, should I stop taking it?" → no advice, clinical_question handoff 2ms
+ ✓ tests/safety.test.ts > no clinical advice > "is it ok to skip my medication today" → no advice, clinical_question handoff 2ms
+ ✓ tests/safety.test.ts > no clinical advice > "I feel dizzy after my pill, should I stop taking it?" → no advice, clinical_question handoff 5ms
  ✓ tests/safety.test.ts > no clinical advice > "is 160/100 too high?" → no advice, clinical_question handoff 3ms
- ✓ tests/safety.test.ts > no clinical advice > "can I take ibuprofen with my BP med?" → no advice, clinical_question handoff 2ms
- ✓ tests/safety.test.ts > never claims a booking or a deadline > status questions in other words still say pending, not booked 10ms
- ✓ tests/safety.test.ts > never claims a booking or a deadline > no agent reply in the whole script claims a booking, promises a time, or gives dosing advice 14ms
+ ✓ tests/safety.test.ts > no clinical advice > "can I take ibuprofen with my BP med?" → no advice, clinical_question handoff 3ms
+ ✓ tests/safety.test.ts > never claims a booking or a deadline > status questions in other words still say pending, not booked 12ms
+ ✓ tests/safety.test.ts > never claims a booking or a deadline > no agent reply in the whole script claims a booking, promises a time, or gives dosing advice 15ms
+ ✓ tests/behavior.test.ts > scenario clock > reads "now" from settings in Pacific time, not the machine clock 15ms
+ ✓ tests/behavior.test.ts > scenario clock > hours answer follows the configured now (2026-11-07T11:00:00-08:00) 10ms
+ ✓ tests/behavior.test.ts > scenario clock > hours answer follows the configured now (2026-11-04T17:30:00-08:00) 5ms
+ ✓ tests/behavior.test.ts > scenario clock > hours answer follows the configured now (2026-11-04T08:00:00-08:00) 2ms
+ ✓ tests/behavior.test.ts > scenario clock > the structured business hours match the FAQ text 0ms
+ ✓ tests/behavior.test.ts > date resolution > "Tuesday" on Wed Nov 4 is Tue Nov 10 0ms
+ ✓ tests/behavior.test.ts > date resolution > "Thursday" with no context is tomorrow, Thu Nov 5 0ms
+ ✓ tests/behavior.test.ts > date resolution > "Thursday instead" of Tue Nov 10 is Thu Nov 12, the same week 0ms
+ ✓ tests/behavior.test.ts > date resolution > "Monday instead" of Tue Nov 10 is Mon Nov 9 0ms
+ ✓ tests/behavior.test.ts > date resolution > never resolves to today or the past 0ms
+ ✓ tests/behavior.test.ts > appointment requests > a specific slot is recorded when Alex picks one 9ms
+ ✓ tests/behavior.test.ts > appointment requests > several changes keep one request, and the latest preference wins 9ms
+ ✓ tests/behavior.test.ts > appointment requests > without a known reason, asks what the visit is for and uses the answer 12ms
+ ✓ tests/behavior.test.ts > offers to pass a question to staff > "yes" after the Aetna answer files an `other` request linked to the question 3ms
+ ✓ tests/behavior.test.ts > offers to pass a question to staff > "no" files nothing 4ms
+ ✓ tests/behavior.test.ts > swipe to reply > "yes" swiped onto an older clinic offer is matched to that offer, not the latest message 8ms
+ ✓ tests/behavior.test.ts > swipe to reply > a reply id from another thread or a missing message is ignored 4ms
+ ✓ tests/behavior.test.ts > swipe to reply > clinic staff can quote a patient message 2ms
+ ✓ tests/behavior.test.ts > refills > a second refill ask updates the open refill instead of duplicating it 5ms
+ ✓ tests/behavior.test.ts > persistence > a pending offer survives a restart: "yes" after restart still matches message 0 6ms
+ ✓ tests/behavior.test.ts > persistence > supplied data files are never written 16ms
  ✓ tests/safety.test.ts > reply guard > blocks "Your recheck request is now booked for Thursday." 0ms
  ✓ tests/safety.test.ts > reply guard > blocks "Good news, I've scheduled you for Tuesday." 0ms
  ✓ tests/safety.test.ts > reply guard > blocks "Staff will get back to you today." 0ms
@@ -99,38 +92,43 @@
  ✓ tests/safety.test.ts > reply guard > blocks "You can take two pills tonight." 0ms
  ✓ tests/safety.test.ts > reply guard > blocks "Keep taking your lisinopril as usual." 0ms
  ✓ tests/safety.test.ts > reply guard > allows the real templates 0ms
- ✓ tests/safety.test.ts > model failure > falls back to local rules when the Claude interpreter throws, and says so in the trace 2ms
- ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > "Wednesday" (Nov 11, Veterans Day) is not requested; Alex is asked for another day 7ms
- ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > "actually Saturday" keeps the existing request as it was 8ms
- ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > the hours answer on a holiday says closed 4ms
- ✓ tests/edge-cases.test.ts > scenario clock keeps running > a request updated later has a later updated_at; setting "now" restarts the clock 10ms
+ ✓ tests/safety.test.ts > model failure > falls back to local rules when the Claude interpreter throws, and says so in the trace 3ms
+ ✓ tests/edge-cases.test.ts > after staff close a request > "cancelled" offers to request it again, and "yes" starts a new request 10ms
+ ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > computes the 2026 federal holidays, observed dates included 1ms
+ ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > "Wednesday" (Nov 11, Veterans Day) is not requested; Alex is asked for another day 11ms
+ ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > "actually Saturday" keeps the existing request as it was 9ms
+ ✓ tests/edge-cases.test.ts > closed days: weekends and federal holidays > the hours answer on a holiday says closed 2ms
+ ✓ tests/edge-cases.test.ts > scenario clock keeps running > a request updated later has a later updated_at; setting "now" restarts the clock 7ms
  ✓ tests/edge-cases.test.ts > simulated SMS metadata > every message stores the sender and recipient numbers 2ms
- ✓ tests/edge-cases.test.ts > automated disclosure > the first automated reply says so in the text; later ones and the emergency text do not 4ms
- ✓ tests/edge-cases.test.ts > declining the clinic outreach > "no thanks" to the recheck offer is logged for staff, and not listed as something Alex asked for 3ms
+ ✓ tests/edge-cases.test.ts > automated disclosure > the first automated reply says so in the text; later ones and the emergency text do not 3ms
+ ✓ tests/edge-cases.test.ts > declining the clinic outreach > "no thanks" to the recheck offer is logged for staff, and not listed as something Alex asked for 2ms
  ✓ tests/edge-cases.test.ts > two requests in one message > handles the first and names the second instead of dropping it 6ms
- ✓ tests/edge-cases.test.ts > two requests in one message > no script step triggers the notice 8ms
- ✓ tests/hosted.test.ts > per-request snapshot store (what the hosted demo does) > plays the whole script exactly like the SQLite store, one fresh store per message 55ms
+ ✓ tests/edge-cases.test.ts > two requests in one message > no script step triggers the notice 9ms
+ ✓ tests/hosted.test.ts > per-request snapshot store (what the hosted demo does) > plays the whole script exactly like the SQLite store, one fresh store per message 52ms
  ✓ tests/hosted.test.ts > per-request snapshot store (what the hosted demo does) > reports only what changed, and a reset as a reset 1ms
- ✓ tests/hosted.test.ts > HTTP API > answers a patient message and returns the new state 32ms
- ✓ tests/hosted.test.ts > HTTP API > rejects bad input with a 400 and an unknown request with a 404 11ms
- ✓ tests/variations.test.ts > answers from the record and the FAQ > "what medications am I on?" 3ms
- ✓ tests/variations.test.ts > answers from the record and the FAQ > "how much do I owe?" 2ms
+ ✓ tests/hosted.test.ts > HTTP API > answers a patient message and returns the new state 36ms
+ ✓ tests/hosted.test.ts > HTTP API > rejects bad input with a 400 and an unknown request with a 404 8ms
+ ✓ tests/variations.test.ts > answers from the record and the FAQ > "do you accept blue shield?" 3ms
+ ✓ tests/variations.test.ts > answers from the record and the FAQ > "can I pay with a card over text?" 2ms
+ ✓ tests/variations.test.ts > answers from the record and the FAQ > "who is my doctor?" 2ms
+ ✓ tests/variations.test.ts > answers from the record and the FAQ > "what medications am I on?" 2ms
+ ✓ tests/variations.test.ts > answers from the record and the FAQ > "how much do I owe?" 1ms
  ✓ tests/variations.test.ts > answers from the record and the FAQ > "I need more lisinopril" → refill handoff 2ms
- ✓ tests/variations.test.ts > answers from the record and the FAQ > "I'm almost out of my blood pressure pills" → refill handoff 3ms
- ✓ tests/variations.test.ts > what the local interpreter cannot understand fails safe > "necesito una cita el martes" → offers staff, files nothing 2ms
- ✓ tests/variations.test.ts > what the local interpreter cannot understand fails safe > "what's the weather like?" → offers staff, files nothing 2ms
- ✓ tests/variations.test.ts > what the local interpreter cannot understand fails safe > "can I talk to a real person?" → offers staff, files nothing 2ms
- ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [offer] "yeah sure" 2ms
- ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [slots] "sounds good, what times do you have?" 3ms
- ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [request] "has my appointment been confirmed?" 6ms
- ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [request] "did you book it?" 6ms
+ ✓ tests/variations.test.ts > answers from the record and the FAQ > "I'm almost out of my blood pressure pills" → refill handoff 2ms
+ ✓ tests/variations.test.ts > what the local interpreter cannot understand fails safe > "necesito una cita el martes" → offers staff, files nothing 3ms
+ ✓ tests/variations.test.ts > what the local interpreter cannot understand fails safe > "what's the weather like?" → offers staff, files nothing 3ms
+ ✓ tests/variations.test.ts > what the local interpreter cannot understand fails safe > "can I talk to a real person?" → offers staff, files nothing 3ms
+ ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [offer] "yeah sure" 6ms
+ ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [slots] "sounds good, what times do you have?" 6ms
+ ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [request] "has my appointment been confirmed?" 7ms
+ ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [request] "did you book it?" 4ms
  ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [fresh] "my bp was 165/105 this morning, is that bad?" 2ms
  ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [fresh] "I have a fever of 103" 2ms
- ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [fresh] "what medications am I on?" 2ms
+ ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [fresh] "what medications am I on?" 1ms
  ✓ tests/variations.test.ts > no variation claims a booking, promises a time or gives dosing advice > [fresh] "I need more lisinopril" 2ms
- ✓ tests/variations.test.ts > the clinic offer is remembered across a message the agent did not understand > your exact thread: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works" 5ms
+ ✓ tests/variations.test.ts > the clinic offer is remembered across a message the agent did not understand > your exact thread: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works" 6ms
  ✓ tests/variations.test.ts > the clinic offer is remembered across a message the agent did not understand > a question in between does not make the agent ask what the visit is for 4ms
- ✓ tests/variations.test.ts > the clinic offer is remembered across a message the agent did not understand > once a request came from the offer, a new unrelated visit still asks for its reason 4ms
+ ✓ tests/variations.test.ts > the clinic offer is remembered across a message the agent did not understand > once a request came from the offer, a new unrelated visit still asks for its reason 5ms
  ✓ tests/variations.test.ts > weekday typos > "thursdar 1:30 works" → thursday 0ms
  ✓ tests/variations.test.ts > weekday typos > "wensday morning" → wednesday 0ms
  ✓ tests/variations.test.ts > weekday typos > "tuesdy pm" → tuesday 0ms
@@ -142,29 +140,36 @@
  ✓ tests/variations.test.ts > a day or time Alex rules out > "I can't do Tuesday" is read as ruled out, not as a preference 0ms
  ✓ tests/variations.test.ts > a day or time Alex rules out > "I'm busy Thursday" is read as ruled out, not as a preference 0ms
  ✓ tests/variations.test.ts > a day or time Alex rules out > your exact thread: "2pm works", then "I can't at 3:30pm" keeps 2:00 and records 3:30 as ruled out 5ms
- ✓ tests/variations.test.ts > a day or time Alex rules out > ruling out the chosen time leaves the other open time 5ms
- ✓ tests/variations.test.ts > a day or time Alex rules out > ruling out the requested day takes it off the request and asks for another 5ms
- ✓ tests/staff-resolution.test.ts > a visit staff could not book > never repeats staff's internal note to Alex 9ms
+ ✓ tests/variations.test.ts > a day or time Alex rules out > ruling out the chosen time leaves the other open time 7ms
+ ✓ tests/variations.test.ts > a day or time Alex rules out > ruling out the requested day takes it off the request and asks for another 7ms
+ ✓ tests/variations.test.ts > questions about open times are answered, not filed > your exact thread: "is this week available?", "the current week, not the next", "are openings for Monday?" 10ms
+ ✓ tests/variations.test.ts > questions about open times are answered, not filed > "any openings on Tuesday?" 3ms
+ ✓ tests/staff-resolution.test.ts > a visit staff booked > a cancellation staff carried out removes the physical from upcoming visits 8ms
+ ✓ tests/staff-resolution.test.ts > a visit staff could not book > offers to request it again, and "yes" starts a new request without asking the reason 11ms
+ ✓ tests/staff-resolution.test.ts > a visit staff could not book > never repeats staff's internal note to Alex 12ms
  ✓ tests/staff-resolution.test.ts > refills > a status question while pending says "not yet" and files nothing new 6ms
- ✓ tests/staff-resolution.test.ts > refills > after staff approve it, reports the approval instead of filing a second refill 6ms
- ✓ tests/staff-resolution.test.ts > refills > after staff deny it, says so and points to the phone line 5ms
+ ✓ tests/staff-resolution.test.ts > refills > after staff approve it, reports the approval instead of filing a second refill 5ms
+ ✓ tests/staff-resolution.test.ts > refills > after staff deny it, says so and points to the phone line 6ms
  ✓ tests/staff-resolution.test.ts > the staff action validates its input > rejects an unknown request 4ms
- ✓ tests/staff-resolution.test.ts > the staff action validates its input > rejects an outcome that does not fit the type 4ms
+ ✓ tests/staff-resolution.test.ts > the staff action validates its input > rejects an outcome that does not fit the type 6ms
  ✓ tests/staff-resolution.test.ts > the staff action validates its input > rejects booked without a date 5ms
  ✓ tests/staff-resolution.test.ts > the staff action validates its input > rejects booked without a valid time 5ms
- ✓ tests/staff-resolution.test.ts > the staff action validates its input > refuses to resolve the same request twice 6ms
- ✓ tests/staff-resolution.test.ts > the staff action validates its input > survives a restart 8ms
+ ✓ tests/staff-resolution.test.ts > the staff action validates its input > refuses to resolve the same request twice 5ms
+ ✓ tests/staff-resolution.test.ts > the staff action validates its input > survives a restart 10ms
  ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > "change it to Thursday" means Thursday of that week (Nov 12, with openings), not tomorrow 4ms
- ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > while the move is pending, the Tuesday booking stays and the agent says the move is pending 4ms
- ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > once staff move it, the Tuesday booking is replaced everywhere 6ms
- ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > a second move follows the first, and a cancellation ends it 7ms
- ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > plays the script one transaction per message, survives a restart, and keeps one of each request 65ms
- ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > keeps what staff resolved (booked for Thu 1:30) across a restart 10ms
+ ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > while the move is pending, the Tuesday booking stays and the agent says the move is pending 6ms
+ ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > once staff move it, the Tuesday booking is replaced everywhere 7ms
+ ✓ tests/staff-resolution.test.ts > a booked visit that Alex moves or cancels > a second move follows the first, and a cancellation ends it 9ms
+ ✓ tests/variations.test.ts > questions about open times are answered, not filed > "what openings do you have next week?" 3ms
+ ✓ tests/variations.test.ts > questions about open times are answered, not filed > "any openings on Saturday?" 3ms
+ ✓ tests/variations.test.ts > questions about open times are answered, not filed > "are you open on Saturday?" is still the clinic hours, and "I'm available Tuesday" still a preference 0ms
+ ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > plays the script one transaction per message, survives a restart, and keeps one of each request 56ms
+ ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > keeps what staff resolved (booked for Thu 1:30) across a restart 9ms
  ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > serialises two messages sent at the same moment (no lost or duplicate rows) 6ms
- ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > keeps each visitor in their own thread: separate messages, separate ids, reset only clears yours 9ms
+ ✓ tests/hosted.test.ts > Postgres (TEST_DATABASE_URL) > keeps each visitor in their own thread: separate messages, separate ids, reset only clears yours 10ms
 
  Test Files  7 passed (7)
-      Tests  161 passed (161)
-   Start at  18:21:03
-   Duration  531ms (import 46%, tests 41%, transform 12%, worker 1%)
+      Tests  166 passed (166)
+   Start at  18:41:45
+   Duration  550ms (import 47%, tests 44%, transform 8%, worker 1%)
 
