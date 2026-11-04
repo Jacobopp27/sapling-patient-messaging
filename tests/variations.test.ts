@@ -223,3 +223,37 @@ describe('a day or time Alex rules out', () => {
   });
 });
 
+
+describe('questions about open times are answered, not filed', () => {
+  it('your exact thread: "is this week available?", "the current week, not the next", "are openings for Monday?"', async () => {
+    const svc = await thread('slots');
+    const week = opening((await svc.receivePatientMessage('is this week available?')).reply.body);
+    expect(week).toMatch(/^Dr\. Lee doesn't have open times for the rest of this week\. The next openings are Tuesday, Nov 10 \(2:00 p\.m\. or 3:30 p\.m\.\) and Thursday, Nov 12/);
+    const again = opening((await svc.receivePatientMessage('the current week, not the next')).reply.body);
+    expect(again).toMatch(/for the rest of this week/);
+    const monday = opening((await svc.receivePatientMessage('are openings for Monday?')).reply.body);
+    expect(monday).toMatch(/^Dr\. Lee doesn't have open times on Monday, Nov 9\./);
+    expect(svc.store.listRequests('pt_001')).toEqual([]); // a question files nothing
+
+    await svc.receivePatientMessage('Tuesday 2pm works');
+    const [r] = svc.store.listRequests('pt_001');
+    expect(r.details).toMatchObject({ reason: 'BP recheck', date: '2026-11-10', preferred_time: '14:00' });
+    expect(r.sourceMessageIds[0]).toBe(1); // still linked to the clinic's offer
+  });
+
+  it.each<[string, RegExp]>([
+    ['any openings on Tuesday?', /^Yes\. Dr\. Lee has openings on Tuesday, Nov 10: 2:00 p\.m\. or 3:30 p\.m\./],
+    ['what openings do you have next week?', /^Dr\. Lee has openings next week: Tuesday, Nov 10 .* and Thursday, Nov 12/],
+    ['any openings on Saturday?', /^The clinic is closed on Saturday, Nov 7 \(weekends\)\./],
+  ])('"%s"', async (text, expected) => {
+    const svc = await thread('slots');
+    expect(opening((await svc.receivePatientMessage(text)).reply.body)).toMatch(expected);
+    expect(svc.store.listRequests('pt_001')).toEqual([]);
+  });
+
+  it('"are you open on Saturday?" is still the clinic hours, and "I\'m available Tuesday" still a preference', async () => {
+    const ctx = (text: string) => ({ text, thread: [], today: '2026-11-04', medications: ['Lisinopril'], appointmentTypes: ['Annual physical'] });
+    expect(interpretWithRules(ctx('are you open on Saturday?')).intent).toBe('clinic_info');
+    expect(interpretWithRules(ctx("I'm available Tuesday afternoon")).intent).toBe('appointment_preference');
+  });
+});

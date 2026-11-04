@@ -5,6 +5,7 @@ export const INTENTS = [
   'affirm',                 // "yes", "sure": answers whatever the last outbound message asked
   'decline',                // "no thanks"
   'appointment_preference', // wants a visit / gives or changes day, window or time
+  'availability_question',  // "any openings on Monday?", "is this week available?": answered from open slots, files nothing
   'appointment_status',     // "is it booked yet?"
   'next_appointment',       // "when is my next appointment?"
   'change_appointment',     // move or cancel an appointment ("can we move my physical?", "cancel the recheck")
@@ -41,6 +42,8 @@ export interface Interpretation {
   readings?: string[];
   /** Time period the readings cover, e.g. "all week". */
   period?: string;
+  /** For availability_question: "this week" or "next week". */
+  week?: 'this' | 'next';
   /** A time ("I can't at 3:30") or day ("Tuesday doesn't work") Alex rules out. */
   avoid_time?: string;
   avoid_weekday?: string;

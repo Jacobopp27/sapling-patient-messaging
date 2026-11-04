@@ -121,6 +121,67 @@ function askForTime(turn: Turn, reason: string, provider: string, context: strin
 type Offer = Extract<Pending, { kind: 'appointment_offer' | 'appointment_time' }>;
 const asOffer = (p?: Pending): Offer | undefined => (p?.kind === 'appointment_offer' || p?.kind === 'appointment_time' ? p : undefined);
 
+/** "Tuesday, Nov 10 (2:00 p.m. or 3:30 p.m.) and Thursday, Nov 12 (…)" */
+function slotsByDay(slots: { date: string; start: string }[], today: string): string {
+  const byDate = new Map<string, string[]>();
+  for (const s of slots) byDate.set(s.date, [...(byDate.get(s.date) ?? []), s.start]);
+  return [...byDate].map(([date, times]) => `${formatDate(date, today)} (${slotList(times)})`).join(' and ');
+}
+
+/**
+ * "Any openings on Monday?", "is this week available?": a question, not a request. Answer from the
+ * open slots and file nothing; the time Alex then picks becomes the request.
+ */
+function availabilityQuestion(turn: Turn, i: Interpretation): HandlerResult {
+  const { tools, pending, inbound } = turn;
+  const today = tools.now().date;
+  const existing = tools.openRequests('appointment_request').at(-1);
+  const fromLast = asOffer(pending);
+  const offer = fromLast ?? asOffer(turn.openOffer?.pending);
+  const offerMessageId = fromLast ? turn.pendingMessageId : turn.openOffer?.messageId;
+  const provider = (existing?.details.provider as string | undefined) ?? offer?.provider ?? tools.patient('last_visit').last_visit.provider;
+  const doc = shortName(provider);
+
+  // Which days the question is about: one day, this or next week, or anything open.
+  let days: string[] | undefined;
+  let label = '';
+  if (i.date || i.weekday || i.topic === 'tomorrow') {
+    const date = i.date ?? (i.topic === 'tomorrow' ? addDays(today, 1) : resolveWeekday(today, WEEKDAYS.indexOf(i.weekday!)));
+    days = [date];
+    label = `on ${formatDate(date, today)}`;
+  } else if (i.week) {
+    const monday = addDays(today, -((weekdayOf(today) + 6) % 7));
+    const [from, to] = i.week === 'this' ? [addDays(today, 1), addDays(monday, 6)] : [addDays(monday, 7), addDays(monday, 13)];
+    days = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
+    label = i.week === 'this' ? 'for the rest of this week' : 'next week';
+  }
+
+  const all = tools.openSlots({ provider, window: i.window ?? 'any' });
+  const matching = days ? all.filter((s) => days!.includes(s.date)) : all;
+  // Keep the clinic's offer going, so "Tuesday 2pm works" next becomes the BP recheck request.
+  const sources = offer?.kind === 'appointment_time' ? offer.sourceMessageIds ?? [] : offer && offerMessageId ? [offerMessageId] : [];
+  const keepOffer: Pending | undefined = offer && !existing
+    ? { kind: 'appointment_time', reason: offer.reason, provider, context: offer.context, sourceMessageIds: [...sources, inbound.id] }
+    : undefined;
+
+  const closed = days?.length === 1 ? closedOn(days[0]) : undefined;
+  let body: string;
+  if (closed) {
+    body = `The clinic is closed ${label} (${closed}).${all.length ? ` ${doc}'s next openings are ${slotsByDay(all, today)}.` : ''}`;
+  } else if (matching.length) {
+    body = days?.length === 1
+      ? `Yes. ${doc} has openings ${label}: ${slotList(matching.map((s) => s.start))}.`
+      : `${doc} has openings ${label ? `${label}: ` : 'on '}${slotsByDay(matching, today)}.`;
+  } else {
+    body = `${doc} doesn't have open times ${label || 'right now'}.${all.length ? ` The next openings are ${slotsByDay(all, today)}.` : ''}`;
+  }
+  body += matching.length || all.length
+    ? ' Which works for you? You can also name another day, and staff will look for options.'
+    : ' Tell me a day that works, and staff will look for options.';
+  return { body: body.replace(/p\.m\.\./g, 'p.m.').replace(/a\.m\.\./g, 'a.m.'), source: 'open_slots', pending: keepOffer };
+}
+
 function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
   const { tools, inbound, pending } = turn;
   const patient = tools.patient('last_visit');
@@ -705,6 +766,7 @@ export const HANDLERS: Record<Intent, (turn: Turn, i: Interpretation) => Handler
   affirm,
   decline,
   appointment_preference: appointmentPreference,
+  availability_question: availabilityQuestion,
   appointment_status: appointmentStatus,
   next_appointment: nextAppointment,
   change_appointment: changeAppointment,

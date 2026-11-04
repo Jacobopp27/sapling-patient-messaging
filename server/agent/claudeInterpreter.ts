@@ -29,6 +29,7 @@ const SCHEMA = {
     medication: { type: 'string' },
     readings: { type: 'array', items: { type: 'string' } },
     period: { type: 'string' },
+    week: { type: 'string', enum: ['this', 'next'], description: 'For availability_question: this week or next week' },
     avoid_time: { type: 'string', description: 'HH:MM 24h, a time the patient says does NOT work' },
     avoid_weekday: { type: 'string', enum: WEEKDAYS },
     action: { type: 'string', enum: ['reschedule', 'cancel'] },
@@ -43,6 +44,7 @@ Return the single best intent and any fields the message states. Never invent fi
 Intents:
 - affirm / decline: a bare yes/no answering the clinic's last message.
 - appointment_preference: wants a visit, or gives/changes a day, date, time or morning/afternoon.
+- availability_question: asks which days or times are open ("any openings Monday?", "is this week available?", "what about the current week?"). It is a question, not a request: put the day in weekday/date or set week.
 - appointment_status: asks whether a requested appointment is booked/confirmed.
 - next_appointment: asks when their next appointment is.
 - change_appointment: wants to move (action reschedule) or cancel (action cancel) an appointment. target = booked if they

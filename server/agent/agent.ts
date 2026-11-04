@@ -14,6 +14,7 @@ import { changeTarget, ruleInterpreter } from './ruleInterpreter.js';
 const ALSO_LABEL: Partial<Record<Intent, string>> = {
   appointment_preference: 'an appointment',
   appointment_status: 'whether your appointment is booked',
+  availability_question: 'open times',
   next_appointment: 'your next appointment',
   change_appointment: 'changing an appointment',
   clinic_info: 'clinic information',

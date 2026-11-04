@@ -177,6 +177,15 @@ function interpretOne(ctx: InterpreterContext): Interpretation {
   ];
   for (const [topic, re] of record) if (re.test(t)) return { intent: 'record_info', topic };
 
+  // "Any openings on Monday?", "is this week available?": a question about open slots, not a request.
+  const week = /\b(this|current) week\b/i.test(t) ? 'this' : /\bnext week\b/i.test(t) ? 'next' : undefined;
+  const asksOpenings = /\b(available|availability|openings?|open (slots?|times?|appointments?)|free (slots?|times?)|any (times?|slots?))\b/i.test(t)
+    && !/\b(i'?m|i am|i'?ll be) (available|free)\b/i.test(t);
+  if (asksOpenings || (week && !extractWeekday(t) && !extractTime(t))) {
+    const when = schedulingFields(t, ctx.today);
+    return { intent: 'availability_question', ...when, ...(week ? { week } : {}) };
+  }
+
   if (/\b(do|does) (you|the clinic) (take|accept)\b|\bin[- ]network\b|\b(accept|take)\b.{0,20}\binsurance\b|\b(aetna|cigna|kaiser|medicare|medicaid|united ?health(care)?|humana)\b/i.test(t)) {
     return { intent: 'not_in_data', topic: 'which insurance plans the clinic accepts' };
   }
