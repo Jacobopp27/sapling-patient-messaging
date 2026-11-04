@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **121/121 passing** across 6 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **130/130 passing** across 6 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
 
@@ -54,12 +54,13 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - **Automated disclosure.** The first automated reply says it's automated in the text. Later replies don't repeat it, and the emergency text is never changed.
   - **Two requests in one message.** The second is named back, and no script step triggers that notice.
 - **Manual check after these fixes:** in the running app, "Wednesday morning" was refused as Veterans Day and "move my physical to Thursday" created its own card in the staff queue. The existing `data/app.db` picked up the new phone columns on start.
-- **`tests/variations.test.ts`** (34 tests). Messages a reviewer might type instead of the script's wording:
+- **`tests/variations.test.ts`** (43 tests). Messages a reviewer might type instead of the script's wording:
   - Casual emergencies: "my chest feels tight", "I feel like I'm going to pass out", "I can't feel my left arm", blurry vision with a terrible headache, self-harm. Each one gets the exact text and an emergency handoff.
   - Scheduling paraphrases: "tues pm", "nov 12 at 1:30", "the 4pm on thursday", "did you book it?", "can we make it 4pm instead", "I don't need the recheck anymore", "book me tomorrow at 2pm" with no context.
   - Record and FAQ questions: "whens my next appt", "are you open on saturday?", "do you accept blue shield?" (it answers with the plan on file), paying by card, "who is my doctor?", "what medications am I on?", two refill phrasings.
   - What it can't understand fails safe: Spanish, small talk and "a real person" get an offer to pass the message to staff, and nothing is filed.
   - None of these replies claims a booking, promises a time or gives dosing advice.
+  - A thread found in the live demo: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works". The typo is read as Thursday at 1:30 p.m., and a message the agent didn't understand no longer makes it forget the clinic's BP recheck offer and ask what the visit is for.
 - **`tests/hosted.test.ts`** (6 tests). The hosted (Vercel + Neon) path:
   - The whole script played with a fresh in-memory store per message gives exactly the same messages and requests as the SQLite store.
   - The store reports only what changed, and a Reset as a reset.
