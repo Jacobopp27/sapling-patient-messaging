@@ -61,6 +61,27 @@ describe('a visit staff booked', () => {
     expect(await ask(svc, 'when is my next appointment?')).toMatch(/^Your next booked appointment is your BP recheck with Dr\. Priya Lee on Friday, Nov 13 at 10:00 a\.m\./);
   });
 
+  it('your exact thread: after staff booked it, "I need to change it to tuesday" asks staff to move that visit', async () => {
+    const svc = openService(tempDbFile());
+    svc.sendClinicMessage(SCRIPT[0].body);
+    await svc.receivePatientMessage('yes');
+    await svc.receivePatientMessage('thursday 4pm works');
+    resolveRequest(svc, 1, { outcome: 'booked', date: '2026-11-12', time: '16:00' });
+    expect(await ask(svc, 'is it booked yet?')).toMatch(/^Yes\. Clinic staff booked your BP recheck .* Thursday, Nov 12 at 4:00 p\.m\./);
+    const reply = await ask(svc, 'I need to change it to tuesday');
+    expect(reply).not.toMatch(/What's the visit for/);
+    expect(reply).toMatch(/asked the clinic staff to move your BP recheck with Dr\. Priya Lee on Thursday, Nov 12 at 4:00 p\.m\. to Tuesday, Nov 10, any time that day\. Open times then: 2:00 p\.m\. or 3:30 p\.m\./);
+    const change = svc.store.listRequests(pid).find((r) => r.type === 'appointment_change')!;
+    expect(change.details).toMatchObject({ action: 'reschedule', type: 'BP recheck', current_date: '2026-11-12', current_time: '16:00', preferred_date: '2026-11-10' });
+  });
+
+  it('"change it" with a request still pending updates that request, as before', async () => {
+    const svc = await setup();
+    await ask(svc, 'move it to friday');
+    const appts = svc.store.listRequests(pid).filter((r) => r.type.startsWith('appointment'));
+    expect(appts.map((r) => [r.type, r.details.date])).toEqual([['appointment_request', '2026-11-13']]);
+  });
+
   it('a cancellation staff carried out removes the physical from upcoming visits', async () => {
     const svc = await setup();
     await svc.receivePatientMessage('I need to cancel my physical');

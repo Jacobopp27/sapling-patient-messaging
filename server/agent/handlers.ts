@@ -333,9 +333,16 @@ function changeAppointment(turn: Turn, i: Interpretation): HandlerResult {
   const action = i.action ?? 'reschedule';
   const bookedList = bookedAppointments(tools);
   const mentioned = mentionedAppointment(inbound.body, bookedList);
-  const booked = mentioned ?? bookedList[0];
   const request = tools.openRequests('appointment_request').at(-1);
-  let target = i.target ?? (booked && !request ? 'booked' : request && !booked ? 'request' : undefined);
+  // "Change it": whatever Alex was just talking about. That's the open request if there is one;
+  // otherwise the visit staff most recently booked from Alex's request (not asking what it's for).
+  const pronounOnly = !i.target && !mentioned && !/\b(appointment|visit)\b/i.test(inbound.body);
+  const lastBooked = tools.requests('appointment_request').filter((r) => r.resolution?.outcome === 'booked').at(-1);
+  const justBooked = lastBooked && bookedList.find((a) => a.type === String(lastBooked.details.reason));
+  const booked = mentioned ?? (pronounOnly ? justBooked : undefined) ?? bookedList[0];
+  let target = i.target ?? (pronounOnly
+    ? (request ? 'request' : booked ? 'booked' : undefined)
+    : (booked && !request ? 'booked' : request && !booked ? 'request' : undefined));
   // "Move the recheck" after staff booked it: it's a booked appointment now, not a request.
   if (target === 'request' && !request && mentioned) target = 'booked';
 
@@ -389,14 +396,18 @@ function changeAppointment(turn: Turn, i: Interpretation): HandlerResult {
   if (closed) return { body: closedDayReply(turn, date, closed, booked.provider, `Your ${current} is unchanged.`), source: 'clarifying', pending };
 
   const window = (i.window ?? (time ? windowOf(time) : 'any')) as 'morning' | 'afternoon' | 'any';
+  const slots = tools.openSlots({ date, window, provider: booked.provider }).map((s) => s.start);
+  const picked = time !== undefined && slots.includes(time);
   tools.upsertRequest('appointment_change', {
     action: 'reschedule', ...base,
     preferred_date: date, preferred_window: window, preferred_time: time,
-    matching_open_slots: tools.openSlots({ date, window, provider: booked.provider }).map((s) => s.start),
+    matching_open_slots: picked ? [time] : slots,
     patient_message: inbound.body,
   }, [inbound.id]);
+  const to = `${formatDate(date, today)}, ${time ? `${picked ? 'at' : 'around'} ${formatTime(time)}` : windowText(window)}`;
+  const slotText = picked ? '' : slots.length ? ` ${endSentence(`Open times then: ${slotList(slots)}`)}` : '';
   return {
-    body: `I've asked the clinic staff to move your ${current} to ${formatDate(date, today)}, ${windowText(window)}. This is a request, not a booking: your current appointment stays as it is until staff confirm a new time. ${NOT_MONITORED}`,
+    body: `I've asked the clinic staff to move your ${current} to ${endSentence(to)}${slotText} This is a request, not a booking: your current appointment stays as it is until staff confirm a new time. ${NOT_MONITORED}`,
     source: 'staff_handoff',
     pending,
   };

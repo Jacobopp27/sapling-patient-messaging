@@ -151,7 +151,7 @@ function interpretOne(ctx: InterpreterContext): Interpretation {
   // only quoting the cancellation policy.
   const cancel = /\b(cancel|call off|can'?t make it|cannot make it|won'?t make it|(don'?t|no longer) need|never ?mind)\b/i.test(t);
   if ((cancel || /\b(move|reschedule|change|push|switch)\b/i.test(t))
-    && (changeTarget(t, ctx) || /\b(appointment|visit)\b/i.test(t))) {
+    && (changeTarget(t, ctx) || /\b(appointment|visit|it|that)\b/i.test(t))) {
     const target = changeTarget(t, ctx);
     return { intent: 'change_appointment', action: cancel ? 'cancel' : 'reschedule', ...(target ? { target } : {}), ...schedulingFields(t, ctx.today) };
   }
