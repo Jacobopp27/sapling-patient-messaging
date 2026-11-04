@@ -67,7 +67,7 @@ let client: Anthropic | undefined;
 export const claudeInterpreter: Interpreter = {
   name: 'claude',
   async interpret(ctx: InterpreterContext): Promise<Interpretation> {
-    client ??= new Anthropic({ timeout: 20_000, maxRetries: 1 });
+    client ??= new Anthropic({ timeout: 12_000, maxRetries: 1 });
     const user = [
       `Today is ${ctx.today} (${WEEKDAYS[new Date(`${ctx.today}T00:00:00Z`).getUTCDay()]}).`,
       `Medications on file: ${ctx.medications.join(', ')}.`,
