@@ -166,8 +166,8 @@ _source: requests · intent: list_requests_
       4,
       6
     ],
-    "createdAt": "2026-11-04T18:00:00.018Z",
-    "updatedAt": "2026-11-04T18:00:00.019Z",
+    "createdAt": "2026-11-04T18:00:00.017Z",
+    "updatedAt": "2026-11-04T18:00:00.018Z",
     "resolution": null
   },
   {
@@ -190,8 +190,8 @@ _source: requests · intent: list_requests_
     "sourceMessageIds": [
       16
     ],
-    "createdAt": "2026-11-04T18:00:00.022Z",
-    "updatedAt": "2026-11-04T18:00:00.022Z",
+    "createdAt": "2026-11-04T18:00:00.021Z",
+    "updatedAt": "2026-11-04T18:00:00.021Z",
     "resolution": null
   },
   {
@@ -215,8 +215,8 @@ _source: requests · intent: list_requests_
     "sourceMessageIds": [
       18
     ],
-    "createdAt": "2026-11-04T18:00:00.023Z",
-    "updatedAt": "2026-11-04T18:00:00.023Z",
+    "createdAt": "2026-11-04T18:00:00.022Z",
+    "updatedAt": "2026-11-04T18:00:00.022Z",
     "resolution": null
   },
   {

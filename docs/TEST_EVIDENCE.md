@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **156/156 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **160/160 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
 
@@ -69,7 +69,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - On real Postgres: the script runs one transaction per message, step 12 is right after a restart (a new connection pool), and there's still exactly one of each request.
   - On real Postgres: what staff resolved ("booked for Thu 1:30") survives a restart, and the new column is added to an existing database.
   - On real Postgres: two messages sent at the same moment from two instances are serialised, with no lost or duplicate rows.
-- **`tests/staff-resolution.test.ts`** (18 tests). Closing the loop with staff:
+- **`tests/staff-resolution.test.ts`** (22 tests). Closing the loop with staff:
   - After staff mark the recheck **booked** for Thu Nov 12 at 1:30, "is it booked yet?" says exactly that, the recheck becomes the next appointment ahead of the physical, and the list shows it as booked.
   - Staff can text Alex the update. It's saved as a clinic message, not an agent reply.
   - "Move the recheck" after it was booked asks staff to move that booking. So does "I need to change it to tuesday" right after staff booked it (found by hand: it used to ask what the visit was for). With a request still pending, "move it to friday" still updates that request. A move or a cancellation staff carry out changes the upcoming visits.
@@ -77,4 +77,5 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - Refills: "has my refill been approved?" says "not yet" while pending (filing nothing), then reports the approval or denial staff recorded.
   - The staff action rejects an unknown request (404), an outcome that doesn't fit the type (400), a booking without a valid date or time (400) and resolving twice (409). It survives a restart.
   - No reply in these flows trips the reply guard.
+  - A booked visit that Alex moves, found by hand: after staff book Tue 2:00, "actually I need to change it to Thursday" asks for Thursday **Nov 12** (that week, with openings), not tomorrow. While the move is pending, "is it booked yet?" gives the Tuesday booking and says the move is pending. Once staff carry it out, Tuesday is replaced everywhere: the status, the next appointment and the list ("booked, then moved to Thursday, Nov 12 at 1:30 p.m."). A second move ("move it to 4pm", same day) follows the first, and a cancellation ends the chain.
 

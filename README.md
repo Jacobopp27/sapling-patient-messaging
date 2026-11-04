@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (156 tests, about 1 s).
+To check it works without the UI: `npm test` (160 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -68,6 +68,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
   - A refill: **Approved** or **Not approved**.
   - A question: **Replied to Alex**.
   - An internal note stays internal. Staff can also text Alex the update from a draft they edit; it goes out as the clinic, not the agent.
+  - A move or cancellation staff carry out replaces the earlier booking. The old card says "Moved to … by change #N" or "Cancelled", and the agent follows the chain (booked Tue → moved to Thu → cancelled). While a change is pending, the old booking stays active and the agent says the change is pending, so Alex is never left with no visit.
   - After that, "is it booked yet?" answers with the booked time, the booked visit becomes the next appointment, and "has my refill been approved?" gets the real answer. The agent still can't book or approve anything itself; it only repeats what staff recorded.
 - **"why?" on an agent reply:** a reviewer panel, not part of Alex's phone. It shows who wrote the message and the from/to numbers, the source, which message Alex was answering, what the interpreter understood, which tools ran, and what the safety guards decided.
 - **Yellow pills under a reply:** show when a request was created or updated. Emergency handoffs never show a pill in the chat; staff see them in red at the top of the queue.
@@ -75,7 +76,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 156 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 160 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
