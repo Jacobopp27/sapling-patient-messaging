@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (147 tests, about 1 s).
+To check it works without the UI: `npm test` (154 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -75,7 +75,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 147 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 154 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
@@ -168,6 +168,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
 - **The local interpreter is keyword-based and English-only, and handles one intent per message.**
   - Unrecognised messages get "Would you like me to pass this to staff?". That fails safe, but costs a staff touch. A Spanish message ends up there in local mode; Claude mode understands it.
   - "Refill my meds and also is it booked?" handles the refill and tells Alex to resend the other part. It doesn't split it into two requests.
+  - A message that rules one thing out and picks another ("I can't do Tuesday, Thursday works") only reads the first part.
 - **Bare weekdays are a best guess.** Answering the clinic's offer, "Thursday" means the Thursday with openings (Nov 12). With no offer in play, it means the next Thursday (Nov 5). The date is always said back so Alex can correct it, but the agent doesn't ask when the wording is ambiguous.
 - **Local emergency detection is a broad keyword list.** It's tuned to over-trigger, but it can miss unusual phrasing. Claude mode adds a semantic `possible_emergency` check on top, but never instead of the keywords.
 - **Claude mode was not run live in this environment** (no API key here). It's covered by contract tests that use fake interpreters: model failure falls back to rules, a model-flagged emergency is honoured, and the keyword guard runs before the model.
