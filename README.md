@@ -49,7 +49,7 @@ npm run typecheck
 
 ## Hosted demo (Vercel + Neon Postgres)
 
-The same app can run as a public demo, for example at `sapling.jacoboposada.com`.
+Live at **https://sapling-patient-messaging.vercel.app** (and `https://sapling.jacoboposada.com` once its DNS record is in place). Every push to `master` redeploys it.
 - **Storage.** Vercel functions have no disk that survives, so the hosted API keeps the same three tables in Postgres (Neon) instead of the SQLite file. The agent code doesn't change:
   - Each request takes a lock and loads the thread into memory (`server/memoryStore.ts`).
   - The agent runs on it exactly as it does locally.
