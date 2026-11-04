@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **130/130 passing** across 6 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **147/147 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
 
@@ -61,10 +61,19 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - What it can't understand fails safe: Spanish, small talk and "a real person" get an offer to pass the message to staff, and nothing is filed.
   - None of these replies claims a booking, promises a time or gives dosing advice.
   - A thread found in the live demo: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works". The typo is read as Thursday at 1:30 p.m., and a message the agent didn't understand no longer makes it forget the clinic's BP recheck offer and ask what the visit is for.
-- **`tests/hosted.test.ts`** (6 tests). The hosted (Vercel + Neon) path:
+- **`tests/hosted.test.ts`** (7 tests). The hosted (Vercel + Neon) path:
   - The whole script played with a fresh in-memory store per message gives exactly the same messages and requests as the SQLite store.
   - The store reports only what changed, and a Reset as a reset.
   - The HTTP API answers, and rejects bad input with 400 and an unknown request with 404.
   - On real Postgres: the script runs one transaction per message, step 12 is right after a restart (a new connection pool), and there's still exactly one of each request.
+  - On real Postgres: what staff resolved ("booked for Thu 1:30") survives a restart, and the new column is added to an existing database.
   - On real Postgres: two messages sent at the same moment from two instances are serialised, with no lost or duplicate rows.
+- **`tests/staff-resolution.test.ts`** (16 tests). Closing the loop with staff:
+  - After staff mark the recheck **booked** for Thu Nov 12 at 1:30, "is it booked yet?" says exactly that, the recheck becomes the next appointment ahead of the physical, and the list shows it as booked.
+  - Staff can text Alex the update. It's saved as a clinic message, not an agent reply.
+  - "Move the recheck" after it was booked asks staff to move that booking. A move or a cancellation staff carry out changes the upcoming visits.
+  - **Couldn't book**: the agent offers to request again, and "yes" starts a new request without asking the reason. Staff's internal note is never repeated to Alex.
+  - Refills: "has my refill been approved?" says "not yet" while pending (filing nothing), then reports the approval or denial staff recorded.
+  - The staff action rejects an unknown request (404), an outcome that doesn't fit the type (400), a booking without a valid date or time (400) and resolving twice (409). It survives a restart.
+  - No reply in these flows trips the reply guard.
 

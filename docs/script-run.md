@@ -166,8 +166,9 @@ _source: requests · intent: list_requests_
       4,
       6
     ],
-    "createdAt": "2026-11-04T18:00:00.020Z",
-    "updatedAt": "2026-11-04T18:00:00.021Z"
+    "createdAt": "2026-11-04T18:00:00.018Z",
+    "updatedAt": "2026-11-04T18:00:00.020Z",
+    "resolution": null
   },
   {
     "id": 2,
@@ -190,7 +191,8 @@ _source: requests · intent: list_requests_
       16
     ],
     "createdAt": "2026-11-04T18:00:00.024Z",
-    "updatedAt": "2026-11-04T18:00:00.024Z"
+    "updatedAt": "2026-11-04T18:00:00.024Z",
+    "resolution": null
   },
   {
     "id": 3,
@@ -214,7 +216,8 @@ _source: requests · intent: list_requests_
       18
     ],
     "createdAt": "2026-11-04T18:00:00.024Z",
-    "updatedAt": "2026-11-04T18:00:00.024Z"
+    "updatedAt": "2026-11-04T18:00:00.024Z",
+    "resolution": null
   },
   {
     "id": 4,
@@ -233,7 +236,8 @@ _source: requests · intent: list_requests_
       22
     ],
     "createdAt": "2026-11-04T18:00:00.025Z",
-    "updatedAt": "2026-11-04T18:00:00.025Z"
+    "updatedAt": "2026-11-04T18:00:00.025Z",
+    "resolution": null
   }
 ]
 ```

@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (130 tests, about 1 s).
+To check it works without the UI: `npm test` (147 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -63,13 +63,19 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 - **Agent:** Local rules (default) or Claude, which needs `ANTHROPIC_API_KEY` (see `.env.example`).
 - **Agent activity (staff console):** how many of Alex's messages the agent answered from the data, how many needed a detail from Alex, how many filed or updated a request, and emergencies.
 - **Awaiting staff review (staff console):** each request shows its type, `patient_id`, `created_at` and `updated_at`, its fields, and whether staff can act without texting Alex. "Show the messages it came from" highlights them in the thread, "Show stored record" shows the row exactly as saved, and the status dropdown is the optional staff action.
+- **Resolve… (staff console):** staff record what actually happened, and that's what the agent reports from then on.
+  - A visit: **Booked**, with the date, time and provider (prefilled from the matching open slots), or **Couldn't book**.
+  - A refill: **Approved** or **Not approved**.
+  - A question: **Replied to Alex**.
+  - An internal note stays internal. Staff can also text Alex the update from a draft they edit; it goes out as the clinic, not the agent.
+  - After that, "is it booked yet?" answers with the booked time, the booked visit becomes the next appointment, and "has my refill been approved?" gets the real answer. The agent still can't book or approve anything itself; it only repeats what staff recorded.
 - **"why?" on an agent reply:** a reviewer panel, not part of Alex's phone. It shows who wrote the message and the from/to numbers, the source, which message Alex was answering, what the interpreter understood, which tools ran, and what the safety guards decided.
 - **Yellow pills under a reply:** show when a request was created or updated. Emergency handoffs never show a pill in the chat; staff see them in red at the top of the queue.
 
 ### Other commands
 
 ```bash
-npm test             # 130 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 147 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
@@ -172,12 +178,13 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
   - The agent assumes one open appointment request and one booked appointment at a time.
   - Clinical questions aren't merged; each one is its own request.
 - **The hosted demo has one shared thread.** Everyone who opens the public URL talks to the same Alex, and Reset clears it for everyone. Per-visitor threads would need a thread id on every row.
-- **Staff status changes aren't communicated back to Alex.** The agent reports them only when asked, and can't say what was booked: the record's appointments don't change when staff complete a request.
+- **Staff outcomes reach Alex only if staff text the update, or when Alex asks.** There's no automatic notification, and only a closed request carries an outcome (no "in progress: called the pharmacy" notes yet).
 
 ## Next two priorities
 
 1. **Track B eval harness.** Turn the script and the 32 variations in `tests/variations.test.ts` (plus a request split across messages) into one command that runs both interpreters 3× each. Print a scorecard of safety (hard fail), avoidable staff touches and context use. The rules interpreter is the known weak point, and the harness is what would justify making Claude the default.
-2. **Close the loop with staff.**
-   - Staff resolution (for example, "booked Thu 1:30") becomes the source of truth the agent reports back to Alex.
-   - Add an audit log of request changes.
+2. **Make the staff side production-shaped.**
+   - An audit log of every request change (who, when, what).
+   - Per-visitor threads on the hosted demo.
    - Split multi-intent messages into separate requests.
+   - Staff outcomes are already the source of truth the agent reports (Resolve…).
