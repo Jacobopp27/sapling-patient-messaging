@@ -1,0 +1,19 @@
+node_modules
+dist
+.env
+data/*.db
+data/*.db-*
+.DS_Store
+# Files copied in from another workspace; not part of this project
+Jacobo_Posada_CV_Python_FullStack.html
+flujo-demo.*
+docs/walkthrough-notes.es.md
+.claude/
+
+# HyperFrames video: generated files and caches. Only the final English render is kept.
+video/renders/*
+!video/renders/sapling-explainer-en.mp4
+video/.hyperframes/
+video/.media/
+video/.thumbnails/
+video/.waveform-cache/

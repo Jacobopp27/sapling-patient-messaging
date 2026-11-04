@@ -1,0 +1,7 @@
+- **Hours:** Monday–Friday, 9:00 a.m.–5:00 p.m. Pacific. Closed weekends and federal holidays.
+- **Address:** 1200 Example Ave, Suite 300, Springfield, CA 90000. Free parking in the garage behind the building.
+- **Phone:** (555) 010-0100, during business hours.
+- **Texting:** texts are read during business hours and are not monitored continuously.
+- **Paying a balance:** online at https://pay.example.test/sapling, or by phone during business hours.
+- **What to bring:** photo ID, insurance card, and a list of current medications.
+- **Cancellations:** please give at least 24 hours' notice.
