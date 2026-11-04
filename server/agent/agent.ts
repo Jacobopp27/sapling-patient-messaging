@@ -84,6 +84,7 @@ export async function runAgent(input: AgentInput): Promise<Message> {
     interpretation = await ruleInterpreter.interpret(ctx);
     interpreterName = 'rules';
     note = `Claude interpreter failed, used local rules: ${(err as Error).message}`;
+    console.warn(`[agent] ${note}`);
   }
 
   if (interpretation.possible_emergency) return emergency(['model flagged possible emergency'], { interpreter: interpreterName, interpretation });

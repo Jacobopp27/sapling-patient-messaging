@@ -42,8 +42,8 @@ export interface Interpretation {
   readings?: string[];
   /** Time period the readings cover, e.g. "all week". */
   period?: string;
-  /** For availability_question: "this week" or "next week". */
-  week?: 'this' | 'next';
+  /** For availability_question: "this week", "next week", or a day (YYYY-MM-DD) in the week asked about ("the week of the 16th"). */
+  week?: 'this' | 'next' | string;
   /** A time ("I can't at 3:30") or day ("Tuesday doesn't work") Alex rules out. */
   avoid_time?: string;
   avoid_weekday?: string;

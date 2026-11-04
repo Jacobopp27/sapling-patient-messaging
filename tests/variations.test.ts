@@ -245,6 +245,8 @@ describe('questions about open times are answered, not filed', () => {
     ['any openings on Tuesday?', /^Yes\. Dr\. Lee has openings on Tuesday, Nov 10: 2:00 p\.m\. or 3:30 p\.m\./],
     ['what openings do you have next week?', /^Dr\. Lee has openings next week: Tuesday, Nov 10 .* and Thursday, Nov 12/],
     ['any openings on Saturday?', /^The clinic is closed on Saturday, Nov 7 \(weekends\)\./],
+    ['maybe the week of the 16', /^Dr\. Lee doesn't have open times the week of Monday, Nov 16\. The next openings are Tuesday, Nov 10/],
+    ['what about the week of Nov 9th?', /^Dr\. Lee has openings the week of Monday, Nov 9: Tuesday, Nov 10 .* and Thursday, Nov 12/],
   ])('"%s"', async (text, expected) => {
     const svc = await thread('slots');
     expect(opening((await svc.receivePatientMessage(text)).reply.body)).toMatch(expected);
@@ -255,5 +257,10 @@ describe('questions about open times are answered, not filed', () => {
     const ctx = (text: string) => ({ text, thread: [], today: '2026-11-04', medications: ['Lisinopril'], appointmentTypes: ['Annual physical'] });
     expect(interpretWithRules(ctx('are you open on Saturday?')).intent).toBe('clinic_info');
     expect(interpretWithRules(ctx("I'm available Tuesday afternoon")).intent).toBe('appointment_preference');
+  });
+
+  it('"the week of the 3rd" is the next 3rd of a month (Dec 3), not a day in the past', () => {
+    const ctx = { text: 'the week of the 3rd', thread: [], today: '2026-11-04', medications: [], appointmentTypes: [] };
+    expect(interpretWithRules(ctx)).toEqual({ intent: 'availability_question', week: '2026-12-03' });
   });
 });

@@ -15,36 +15,44 @@ export const hasClaudeKey = () =>
 
 const MODEL = () => process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 
-const SCHEMA = {
+// Every field is required and nullable (null = the patient didn't say it). Optional fields make the
+// structured-output grammar grow fast: with this many, the API rejected the schema as too complex.
+const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: 'null' }] });
+
+const FIELDS: Record<string, Record<string, unknown>> = {
+  weekday: { type: 'string', enum: WEEKDAYS },
+  date: { type: 'string', description: 'YYYY-MM-DD, only if the patient named a calendar date' },
+  window: { type: 'string', enum: ['morning', 'afternoon'] },
+  time: { type: 'string', description: 'HH:MM 24h, only if the patient named a specific time' },
+  topic: { type: 'string', description: `For clinic_info one of: ${FAQ_TOPICS.join(', ')}. For record_info one of: ${RECORD_TOPICS.join(', ')}. For not_in_data a short description of what was asked.` },
+  medication: { type: 'string' },
+  readings: { type: 'array', items: { type: 'string' } },
+  period: { type: 'string' },
+  week: { type: 'string', description: 'For availability_question: "this", "next", or YYYY-MM-DD of a day in the week asked about ("the week of the 16th")' },
+  avoid_time: { type: 'string', description: 'HH:MM 24h, a time the patient says does NOT work' },
+  avoid_weekday: { type: 'string', enum: WEEKDAYS },
+  action: { type: 'string', enum: ['reschedule', 'cancel'] },
+  target: { type: 'string', enum: ['booked', 'request'] },
+  also: { type: 'array', items: { type: 'string', enum: [...INTENTS] } },
+};
+
+export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['intent', 'possible_emergency'],
+  required: ['intent', 'possible_emergency', ...Object.keys(FIELDS)],
   properties: {
     intent: { type: 'string', enum: [...INTENTS] },
-    weekday: { type: 'string', enum: WEEKDAYS },
-    date: { type: 'string', description: 'YYYY-MM-DD, only if the patient named a calendar date' },
-    window: { type: 'string', enum: ['morning', 'afternoon'] },
-    time: { type: 'string', description: 'HH:MM 24h, only if the patient named a specific time' },
-    topic: { type: 'string', description: `For clinic_info one of: ${FAQ_TOPICS.join(', ')}. For record_info one of: ${RECORD_TOPICS.join(', ')}. For not_in_data a short description of what was asked.` },
-    medication: { type: 'string' },
-    readings: { type: 'array', items: { type: 'string' } },
-    period: { type: 'string' },
-    week: { type: 'string', enum: ['this', 'next'], description: 'For availability_question: this week or next week' },
-    avoid_time: { type: 'string', description: 'HH:MM 24h, a time the patient says does NOT work' },
-    avoid_weekday: { type: 'string', enum: WEEKDAYS },
-    action: { type: 'string', enum: ['reschedule', 'cancel'] },
-    target: { type: 'string', enum: ['booked', 'request'] },
-    also: { type: 'array', items: { type: 'string', enum: [...INTENTS] } },
+    ...Object.fromEntries(Object.entries(FIELDS).map(([k, v]) => [k, nullable(v)])),
     possible_emergency: { type: 'boolean' },
   },
-} as const;
+};
 
 const SYSTEM = `You classify one text message from a patient to their primary-care clinic. You do not reply to the patient.
 Return the single best intent and any fields the message states. Never invent fields the patient did not say.
 Intents:
 - affirm / decline: a bare yes/no answering the clinic's last message.
 - appointment_preference: wants a visit, or gives/changes a day, date, time or morning/afternoon.
-- availability_question: asks which days or times are open ("any openings Monday?", "is this week available?", "what about the current week?"). It is a question, not a request: put the day in weekday/date or set week.
+- availability_question: asks which days or times are open ("any openings Monday?", "is this week available?", "what about the current week?"). It is a question, not a request: put the day in weekday/date or set week. "Maybe the week of the 16th" or "what about the week after?" (even right after the clinic offered times) is availability_question with week set to a YYYY-MM-DD in that week.
 - appointment_status: asks whether a requested appointment is booked/confirmed.
 - next_appointment: asks when their next appointment is.
 - change_appointment: wants to move (action reschedule) or cancel (action cancel) an appointment. target = booked if they
@@ -61,6 +69,7 @@ Intents:
 If the patient rules a day or time out ("I can't at 3:30", "Tuesday doesn't work"), put it in avoid_time or avoid_weekday, never in time or weekday.
 If the message asks for more than one thing, put the main one in intent and the others in also. If any part is a
 clinical_question, intent must be clinical_question.
+Use null for every field the message doesn't give.
 Set possible_emergency true if the message could describe a medical emergency (chest pain, trouble breathing, stroke signs, fainting, severe bleeding, self-harm), even if phrased casually.
 The message may be in any language; classify it the same way.`;
 
@@ -91,7 +100,10 @@ export const claudeInterpreter: Interpreter = {
     if (response.stop_reason === 'refusal') throw new Error('model refused');
     const text = response.content.find((b) => b.type === 'text');
     if (!text || text.type !== 'text') throw new Error('no structured output');
-    const parsed = JSON.parse(text.text) as Interpretation;
+    // Nulls mean "not said": drop them so the result has the same shape the rules interpreter returns.
+    const parsed = Object.fromEntries(
+      Object.entries(JSON.parse(text.text) as Record<string, unknown>).filter(([, v]) => v !== null && !(Array.isArray(v) && v.length === 0)),
+    ) as unknown as Interpretation;
     if (!INTENTS.includes(parsed.intent)) throw new Error(`unknown intent ${parsed.intent}`);
     return parsed;
   },

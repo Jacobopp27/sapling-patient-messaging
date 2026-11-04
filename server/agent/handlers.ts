@@ -150,11 +150,11 @@ function availabilityQuestion(turn: Turn, i: Interpretation): HandlerResult {
     days = [date];
     label = `on ${formatDate(date, today)}`;
   } else if (i.week) {
-    const monday = addDays(today, -((weekdayOf(today) + 6) % 7));
-    const [from, to] = i.week === 'this' ? [addDays(today, 1), addDays(monday, 6)] : [addDays(monday, 7), addDays(monday, 13)];
+    const anchor = i.week === 'this' ? today : i.week === 'next' ? addDays(today, 7) : i.week;
+    const monday = addDays(anchor, -((weekdayOf(anchor) + 6) % 7));
     days = [];
-    for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
-    label = i.week === 'this' ? 'for the rest of this week' : 'next week';
+    for (let d = monday > today ? monday : addDays(today, 1); d <= addDays(monday, 6); d = addDays(d, 1)) days.push(d);
+    label = i.week === 'this' ? 'for the rest of this week' : i.week === 'next' ? 'next week' : `the week of ${formatDate(monday, today)}`;
   }
 
   const all = tools.openSlots({ provider, window: i.window ?? 'any' });

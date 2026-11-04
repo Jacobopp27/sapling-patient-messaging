@@ -1,6 +1,7 @@
 // Safety is pass/fail, so these try to break it: paraphrased emergencies, dosing questions in
 // different shapes, status questions that invite a "yes it's booked", and a misbehaving model.
 import { describe, expect, it } from 'vitest';
+import { SCHEMA } from '../server/agent/claudeInterpreter';
 import { checkReply, detectEmergency, EMERGENCY_TEXT } from '../server/agent/guards';
 import type { Interpreter } from '../server/agent/interpretation';
 import { loadClinicData } from '../server/data';
@@ -140,5 +141,13 @@ describe('model failure', () => {
     const { reply } = await svc.receivePatientMessage('what time do you close today?');
     expect(opening(reply.body)).toMatch(/^We close at 5:00 p\.m\./);
     expect(reply.meta.trace).toMatchObject({ interpreter: 'rules', note: expect.stringContaining('network down') });
+  });
+});
+
+describe('Claude structured-output schema', () => {
+  // With many optional fields the API rejected the schema ("Schema is too complex") and every
+  // Claude call quietly fell back to local rules. Every field is required; "not said" is null.
+  it('has no optional fields', () => {
+    expect([...SCHEMA.required].sort()).toEqual(Object.keys(SCHEMA.properties).sort());
   });
 });

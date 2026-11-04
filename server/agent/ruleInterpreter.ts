@@ -67,6 +67,18 @@ function extractDate(text: string, today: string): string | undefined {
   return iso(year);
 }
 
+/** "the week of the 16th", "week of Nov 16": a day in that week (the next one with that day number). */
+function extractWeekOf(text: string, today: string): string | undefined {
+  const m = text.match(/\bweek of (?:the )?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/i);
+  if (!m) return undefined;
+  if (m[1]) return extractDate(`${m[1]}${m[2]}`, today);
+  const day = Number(m[2]);
+  if (day < 1 || day > 31) return undefined;
+  let [y, mo] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))];
+  if (day < Number(today.slice(8, 10))) [y, mo] = mo === 12 ? [y + 1, 1] : [y, mo + 1];
+  return `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function extractWindow(text: string): 'morning' | 'afternoon' | undefined {
   if (/\bmorning\b/i.test(text)) return 'morning';
   if (/\bafternoon\b|\bevening\b|after lunch|\bpm\b|\bp\.m\./i.test(text)) return 'afternoon';
@@ -178,12 +190,13 @@ function interpretOne(ctx: InterpreterContext): Interpretation {
   for (const [topic, re] of record) if (re.test(t)) return { intent: 'record_info', topic };
 
   // "Any openings on Monday?", "is this week available?": a question about open slots, not a request.
-  const week = /\b(this|current) week\b/i.test(t) ? 'this' : /\bnext week\b/i.test(t) ? 'next' : undefined;
+  const weekOf = extractWeekOf(t, ctx.today);
+  const week = weekOf ?? (/\b(this|current) week\b/i.test(t) ? 'this' : /\bnext week\b/i.test(t) ? 'next' : undefined);
   const asksOpenings = /\b(available|availability|openings?|open (slots?|times?|appointments?)|free (slots?|times?)|any (times?|slots?))\b/i.test(t)
     && !/\b(i'?m|i am|i'?ll be) (available|free)\b/i.test(t);
   if (asksOpenings || (week && !extractWeekday(t) && !extractTime(t))) {
-    const when = schedulingFields(t, ctx.today);
-    return { intent: 'availability_question', ...when, ...(week ? { week } : {}) };
+    const { date, ...when } = schedulingFields(t, ctx.today);
+    return { intent: 'availability_question', ...when, ...(date && !weekOf ? { date } : {}), ...(week ? { week } : {}) };
   }
 
   if (/\b(do|does) (you|the clinic) (take|accept)\b|\bin[- ]network\b|\b(accept|take)\b.{0,20}\binsurance\b|\b(aetna|cigna|kaiser|medicare|medicaid|united ?health(care)?|humana)\b/i.test(t)) {
