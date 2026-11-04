@@ -1,23 +1,36 @@
-// HTTP API for the local demo UI. Thin: every route delegates to ConversationService / Store.
-import express from 'express';
+// HTTP API for the demo UI. Thin: every route delegates to ConversationService / the store.
+// Routes get the service through `withService`, so the same API runs on the local SQLite file
+// (one long-lived service) and on the hosted demo (one Postgres transaction per request).
+import express, { type ErrorRequestHandler } from 'express';
 import { hasClaudeKey } from './agent/claudeInterpreter';
 import { missingFields, REQUEST_TYPES, type RequestStatus } from './requests';
 import type { ConversationService } from './service';
 
 const STATUSES: RequestStatus[] = ['pending_staff', 'in_progress', 'completed', 'cancelled'];
 
-export function createApp(service: ConversationService) {
-  const { store, data } = service;
+export type WithService = <T>(fn: (service: ConversationService) => Promise<T>) => Promise<T>;
+
+export interface AppOptions {
+  /** The hosted demo: one shared thread for every visitor (shown in the UI). */
+  sharedDemo?: boolean;
+}
+
+class HttpError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
+export function createApp(withService: WithService, options: AppOptions = {}) {
   const app = express();
   app.use(express.json());
 
-  const state = () => {
+  const state = ({ store, data }: ConversationService) => {
     const p = data.patient;
     return {
       settings: store.getSettings(),
       /** The scenario clock right now: the configured time plus real time elapsed since it was set. */
       clock: store.now(),
       claudeAvailable: hasClaudeKey(),
+      sharedDemo: Boolean(options.sharedDemo),
       patient: { id: p.patient_id, name: p.name, phone: p.phone },
       messages: store.listMessages(p.patient_id),
       requests: store.listRequests(p.patient_id).map((r) => ({
@@ -28,42 +41,59 @@ export function createApp(service: ConversationService) {
     };
   };
 
-  app.get('/api/state', (_req, res) => { res.json(state()); });
+  app.get('/api/state', async (_req, res) => {
+    res.json(await withService(async (service) => state(service)));
+  });
 
   app.post('/api/messages', async (req, res) => {
     const { author, body, replyTo } = req.body ?? {};
-    if (typeof body !== 'string' || !body.trim()) return void res.status(400).json({ error: 'body is required' });
-    if (replyTo !== undefined && !Number.isInteger(replyTo)) return void res.status(400).json({ error: 'replyTo must be a message id' });
-    if (author === 'clinic') service.sendClinicMessage(body.trim(), replyTo);
-    else if (author === 'patient') await service.receivePatientMessage(body.trim(), replyTo);
-    else return void res.status(400).json({ error: 'author must be clinic or patient' });
-    res.json(state());
+    if (typeof body !== 'string' || !body.trim()) throw new HttpError(400, 'body is required');
+    if (replyTo !== undefined && !Number.isInteger(replyTo)) throw new HttpError(400, 'replyTo must be a message id');
+    if (author !== 'clinic' && author !== 'patient') throw new HttpError(400, 'author must be clinic or patient');
+    res.json(await withService(async (service) => {
+      if (author === 'clinic') service.sendClinicMessage(body.trim(), replyTo);
+      else await service.receivePatientMessage(body.trim(), replyTo);
+      return state(service);
+    }));
   });
 
-  app.patch('/api/settings', (req, res) => {
+  app.patch('/api/settings', async (req, res) => {
     const { now, agentMode } = req.body ?? {};
-    if (now !== undefined && Number.isNaN(Date.parse(now))) return void res.status(400).json({ error: 'now must be an ISO timestamp' });
-    if (agentMode !== undefined && !['local', 'claude'].includes(agentMode)) return void res.status(400).json({ error: 'agentMode must be local or claude' });
-    store.updateSettings({ now, agentMode });
-    res.json(state());
+    if (now !== undefined && Number.isNaN(Date.parse(now))) throw new HttpError(400, 'now must be an ISO timestamp');
+    if (agentMode !== undefined && !['local', 'claude'].includes(agentMode)) throw new HttpError(400, 'agentMode must be local or claude');
+    res.json(await withService(async (service) => {
+      service.store.updateSettings({ now, agentMode });
+      return state(service);
+    }));
   });
 
   // Optional staff action: move a request through its lifecycle. The agent never calls this.
-  app.patch('/api/requests/:id', (req, res) => {
+  app.patch('/api/requests/:id', async (req, res) => {
     const id = Number(req.params.id);
     const { status } = req.body ?? {};
-    if (!store.getRequest(id)) return void res.status(404).json({ error: 'not found' });
-    if (!STATUSES.includes(status)) return void res.status(400).json({ error: `status must be one of ${STATUSES.join(', ')}` });
-    store.updateRequest(id, { status });
-    res.json(state());
+    if (!STATUSES.includes(status)) throw new HttpError(400, `status must be one of ${STATUSES.join(', ')}`);
+    res.json(await withService(async (service) => {
+      if (!service.store.getRequest(id)) throw new HttpError(404, 'not found');
+      service.store.updateRequest(id, { status });
+      return state(service);
+    }));
   });
 
-  app.post('/api/reset', (_req, res) => {
-    const { now, agentMode } = store.getSettings();
-    store.reset();
-    store.updateSettings({ now, agentMode });
-    res.json(state());
+  app.post('/api/reset', async (_req, res) => {
+    res.json(await withService(async (service) => {
+      const { store } = service;
+      const { now, agentMode } = store.getSettings();
+      store.reset();
+      store.updateSettings({ now, agentMode });
+      return state(service);
+    }));
   });
+
+  const onError: ErrorRequestHandler = (err, _req, res, _next) => {
+    if (!(err instanceof HttpError)) console.error(err);
+    res.status(err instanceof HttpError ? err.status : 500).json({ error: err instanceof HttpError ? err.message : 'internal error' });
+  };
+  app.use(onError);
 
   return app;
 }

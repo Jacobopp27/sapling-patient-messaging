@@ -6,7 +6,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { WEEKDAYS } from '../clock';
 import { FAQ_TOPICS, INTENTS, RECORD_TOPICS, type Interpretation, type Interpreter, type InterpreterContext } from './interpretation';
 
-export const hasClaudeKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
+/**
+ * Claude mode needs a key. On the public hosted demo it also needs ALLOW_CLAUDE_MODE=true, so a
+ * visitor can't spend the key's credits unless the owner opted in.
+ */
+export const hasClaudeKey = () =>
+  Boolean(process.env.ANTHROPIC_API_KEY) && (!process.env.VERCEL || process.env.ALLOW_CLAUDE_MODE === 'true');
 
 const MODEL = () => process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 

@@ -5,14 +5,14 @@ import type { Interpreter } from './agent/interpretation';
 import { pendingFromClinicMessage } from './agent/outbound';
 import { ruleInterpreter } from './agent/ruleInterpreter';
 import type { ClinicData } from './data';
-import type { Store } from './store';
-import type { Message } from './types';
+
+import type { DataStore, Message } from './types';
 
 export class ConversationService {
   /** Messages are handled one at a time so two quick replies can't race on the same request. */
   private queue: Promise<unknown> = Promise.resolve();
 
-  constructor(readonly store: Store, readonly data: ClinicData, private interpreterOverride?: Interpreter) {}
+  constructor(readonly store: DataStore, readonly data: ClinicData, private interpreterOverride?: Interpreter) {}
 
   get patientId() { return this.data.patient.patient_id; }
 

@@ -1,10 +1,11 @@
-// SQLite persistence: messages, requests (handoffs) and settings. The only mutable state in the app.
+// SQLite persistence for the local demo: messages, requests (handoffs) and settings.
+// The hosted demo keeps the same rows in Postgres (see postgres.ts).
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_NOW } from './clock';
+import { DEFAULT_NOW, runningClock } from './clock';
 import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests';
-import type { Author, Message, MessageMeta, Request, Settings } from './types';
+import type { DataStore, Message, NewMessage, Request, Settings } from './types';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS messages (
@@ -45,7 +46,7 @@ const toRequest = (r: Row): Request => ({
   sourceMessageIds: JSON.parse(r.source_message_ids), createdAt: r.created_at, updatedAt: r.updated_at,
 });
 
-export class Store {
+export class Store implements DataStore {
   private db: Database.Database;
 
   constructor(file: string) {
@@ -81,19 +82,12 @@ export class Store {
     if (patch.now !== undefined) stmt.run('clockSetAt', String(Date.now()));
   }
 
-  /**
-   * The scenario clock: the configured `now` plus the real time elapsed since it was set. It keeps
-   * running across restarts, so a request updated later gets a later updated_at than created_at.
-   */
   now(): string {
-    const elapsed = Math.max(0, Date.now() - Number(this.setting('clockSetAt') ?? Date.now()));
-    return new Date(Date.parse(this.getSettings().now) + elapsed).toISOString();
+    return runningClock(this.getSettings().now, this.setting('clockSetAt'));
   }
 
   // --- messages ---
-  addMessage(m: {
-    patientId: string; author: Author; body: string; fromNumber: string; toNumber: string; inReplyTo?: number | null; meta?: MessageMeta;
-  }): Message {
+  addMessage(m: NewMessage): Message {
     const direction = m.author === 'patient' ? 'inbound' : 'outbound';
     const info = this.db.prepare(
       'INSERT INTO messages (patient_id, direction, author, body, from_number, to_number, in_reply_to, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',

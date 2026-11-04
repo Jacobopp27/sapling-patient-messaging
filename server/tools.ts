@@ -4,14 +4,14 @@
 import { inWindow, localNow, type DayWindow, type LocalNow } from './clock';
 import type { ClinicData, Patient, Slot } from './data';
 import { REQUEST_TYPES, type Details, type RequestType } from './requests';
-import type { Store } from './store';
-import type { Request, RequestEvent } from './types';
+
+import type { DataStore, Request, RequestEvent } from './types';
 
 export class AgentTools {
   readonly calls: string[] = [];
   readonly events: RequestEvent[] = [];
 
-  constructor(private store: Store, private data: ClinicData) {}
+  constructor(private store: DataStore, private data: ClinicData) {}
 
   private log(call: string) { this.calls.push(call); }
 

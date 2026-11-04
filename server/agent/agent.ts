@@ -2,9 +2,9 @@
 //   emergency guard (code) → interpreter (rules | Claude) → handler (code + tools) → reply guard (code)
 // The interpreter only understands; everything that acts or speaks about safety is code.
 import type { ClinicData } from '../data';
-import type { Store } from '../store';
+
 import { AgentTools } from '../tools';
-import type { Message, MessageMeta, Pending, Trace } from '../types';
+import type { DataStore, Message, MessageMeta, Pending, Trace } from '../types';
 import { AUTOMATED_INTRO, checkReply, detectEmergency, EMERGENCY_TEXT, GUARD_FALLBACK_TEXT } from './guards';
 import { HANDLERS, type HandlerResult, type Turn } from './handlers';
 import type { Intent, Interpretation, Interpreter } from './interpretation';
@@ -27,7 +27,7 @@ const ALSO_LABEL: Partial<Record<Intent, string>> = {
 };
 
 export interface AgentInput {
-  store: Store;
+  store: DataStore;
   data: ClinicData;
   interpreter: Interpreter;
   inbound: Message;

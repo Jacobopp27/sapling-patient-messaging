@@ -11,7 +11,8 @@ const store = new Store(dbFile);
 const service = new ConversationService(store, loadClinicData());
 const port = Number(process.env.PORT ?? 3001);
 
-createApp(service).listen(port, () => {
+// Local demo: one long-lived service on the SQLite file.
+createApp((fn) => fn(service)).listen(port, () => {
   const { now, agentMode } = store.getSettings();
   console.log(`API on http://localhost:${port} · db ${dbFile} · now ${now} · agent ${agentMode}`);
 });

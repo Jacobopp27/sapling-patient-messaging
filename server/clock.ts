@@ -54,6 +54,15 @@ export function resolveWeekday(today: string, weekday: number, anchor?: string):
   return addDays(today, ahead);
 }
 
+/**
+ * The scenario clock: the configured `now` plus the real time elapsed since it was set. It keeps
+ * running across restarts, so a request updated later gets a later updated_at than created_at.
+ */
+export function runningClock(now: string, clockSetAt?: string): string {
+  const elapsed = Math.max(0, Date.now() - Number(clockSetAt ?? Date.now()));
+  return new Date(Date.parse(now) + elapsed).toISOString();
+}
+
 export function windowOf(time: string): DayWindow {
   return time < WINDOWS.morning.to ? 'morning' : 'afternoon';
 }

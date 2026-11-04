@@ -1,9 +1,11 @@
 // Read-only access to the supplied synthetic data. Nothing in the app writes these files.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-export const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+const besideServer = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+/** data/ next to server/; on a serverless bundle, the copy shipped at the project root. */
+export const DATA_DIR = existsSync(besideServer) ? besideServer : path.join(process.cwd(), 'data');
 
 export interface Medication { name: string; dose: string; frequency: string; refills_remaining: number }
 export interface Appointment { date: string; time: string; provider: string; type: string; status: string }
