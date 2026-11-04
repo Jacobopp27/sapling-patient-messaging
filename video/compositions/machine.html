@@ -1,0 +1,90 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #1f5c43; font-family: "Inter", sans-serif; color: #f6f7f4; overflow: hidden; }
+    #root .w { display: inline-block; }
+    #m-stage { position: absolute; inset: 0; }
+    #m-head { position: absolute; left: 160px; top: 110px; font-size: 64px; font-weight: 700; letter-spacing: -0.02em; }
+    #m-head em { font-style: normal; color: #9fe0b4; }
+    #m-pipe { position: absolute; left: 160px; top: 467px; width: 1600px; height: 6px; background: #f6f7f4; border-radius: 3px; transform-origin: 0 50%; opacity: 0.55; }
+    .m-slab { position: absolute; top: 360px; width: 340px; height: 220px; background: #f6f7f4; color: #1d2420; border-radius: 18px; padding: 26px 24px; box-shadow: 0 10px 30px rgba(0,0,0,.18); opacity: 0; border: 4px solid transparent; }
+    .m-slab .n { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #1f5c43; color: #f6f7f4; font-weight: 700; font-size: 28px; }
+    .m-slab h3 { font-size: 32px; font-weight: 700; line-height: 1.1; margin-top: 12px; letter-spacing: -0.01em; }
+    .m-slab .r { position: absolute; left: 24px; right: 20px; bottom: 22px; font-size: 28px; font-weight: 600; color: #276b3b; opacity: 0; }
+    .m-slab .r code { font-family: "JetBrains Mono", monospace; font-size: 28px; }
+    #m-s1 { left: 160px; } #m-s2 { left: 580px; } #m-s3 { left: 1000px; } #m-s4 { left: 1420px; }
+    #m-pill { position: absolute; left: 0; top: 318px; padding: 10px 26px; background: #9fe0b4; color: #1d2420; border-radius: 999px; font-size: 34px; font-weight: 700; opacity: 0; z-index: 3; box-shadow: 0 8px 20px rgba(0,0,0,.2); }
+    .m-cap { position: absolute; left: 160px; top: 630px; width: 1600px; font-size: 42px; font-weight: 500; line-height: 1.25; opacity: 0; }
+    .m-cap em { font-style: normal; color: #9fe0b4; font-weight: 700; }
+    #m-out { position: absolute; left: 610px; top: 640px; width: 1152px;  opacity: 0; clip-path: inset(16px round 16px); }
+  </style>
+  <div id="root" data-composition-id="machine" data-width="1920" data-height="1080">
+    <div id="m-stage">
+      <h2 id="m-head">Every message from Alex goes through <em>4 steps</em></h2>
+      <div id="m-pipe"></div>
+      <div class="m-slab" id="m-s1"><span class="n">1</span><h3>Emergency guard</h3><div class="r">no signals ✓</div></div>
+      <div class="m-slab" id="m-s2"><span class="n">2</span><h3>Interpreter</h3><div class="r"><code>intent: "affirm"</code></div></div>
+      <div class="m-slab" id="m-s3"><span class="n">3</span><h3>Decision + tools</h3><div class="r"><code>openSlots()</code></div></div>
+      <div class="m-slab" id="m-s4"><span class="n">4</span><h3>Reply guard</h3><div class="r">nothing forbidden ✓</div></div>
+      <div id="m-pill">yes</div>
+      <p class="m-cap" id="m-c1" data-hold>First, plain code: is this an <em>emergency</em>? Before any AI runs.</p>
+      <p class="m-cap" id="m-c2" data-hold>It understands: this “yes” answers the <em>clinic’s offer</em>.</p>
+      <p class="m-cap" id="m-c3" data-hold>It reads real data, the <em>open slots</em>. But it can’t book.</p>
+      <p class="m-cap" id="m-c4" data-hold>It checks the reply: never “booked”, no deadlines, no <em>dosing</em>.</p>
+      <img id="m-out" src="assets/shots/bubble-ask-time.png" alt="The agent asks what day works and lists real openings" />
+    </div>
+  </div>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="machine"]');
+      function splitWords(el) {
+        const out = [];
+        [...el.childNodes].forEach((n) => {
+          if (n.nodeType === 3) {
+            n.textContent.split(/(\s+)/).forEach((t) => {
+              if (!t) return;
+              if (/^\s+$/.test(t)) out.push(document.createTextNode(t));
+              else { const s = document.createElement("span"); s.className = "w"; s.textContent = t; out.push(s); }
+            });
+          } else { n.classList.add("w"); out.push(n); }
+        });
+        el.replaceChildren(...out);
+        return el.querySelectorAll(".w");
+      }
+      const head = splitWords(root.querySelector("#m-head"));
+
+      // Pill stops: the top-centre of each station.
+      const stops = [160, 580, 1000, 1420].map((x) => x + 170 - 60);
+      const beats = [
+        { slab: "#m-s1", cap: "#m-c1", enter: 1.9, arrive: 2.6 },
+        { slab: "#m-s2", cap: "#m-c2", enter: 6.1, arrive: 6.8 },
+        { slab: "#m-s3", cap: "#m-c3", enter: 10.3, arrive: 11.0 },
+        { slab: "#m-s4", cap: "#m-c4", enter: 14.5, arrive: 15.2 },
+      ];
+
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo(head, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067 }, 0.2);
+      tl.fromTo("#m-pipe", { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power2.inOut" }, 0.8);
+      tl.fromTo("#m-pill", { opacity: 0, x: -40, scale: 0.8 }, { opacity: 1, x: 20, scale: 1, duration: 0.5, ease: "expo.out" }, 1.2);
+
+      beats.forEach((b, i) => {
+        tl.fromTo(b.slab, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, b.enter);
+        tl.to("#m-pill", { x: stops[i], duration: 0.7, ease: "power2.inOut" }, b.arrive - 0.7);
+        tl.to(b.slab, { borderColor: "#9fe0b4", duration: 0.2 }, b.arrive);
+        tl.fromTo(`${b.slab} .r`, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18 }, b.arrive + 0.1);
+        if (i > 0) {
+          tl.to(beats[i - 1].cap, { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, b.arrive - 0.3);
+          tl.to(beats[i - 1].slab, { borderColor: "rgba(0,0,0,0)", duration: 0.2 }, b.arrive - 0.2);
+        }
+        tl.fromTo(b.cap, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, b.arrive + 0.2);
+      });
+
+      // The reply comes out of the last station.
+      tl.to("#m-pill", { x: 1700, opacity: 0, duration: 0.4, ease: "power3.in" }, 18.9);
+      tl.to("#m-c4", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 18.9);
+      tl.fromTo("#m-out", { opacity: 0, y: -40 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out" }, 19.2);
+      // Whip out to the next world.
+      tl.to("#m-stage", { x: -1920, filter: "blur(16px)", duration: 0.35, ease: "power3.in" }, 21.6);
+      window.__timelines["machine"] = tl;
+    })();
+  </script>
+</template>

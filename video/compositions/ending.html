@@ -1,0 +1,43 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #1f5c43; font-family: "Inter", sans-serif; color: #f6f7f4; overflow: hidden; }
+    #root .w { display: inline-block; }
+    #x-1, #x-2 { position: absolute; left: 160px; font-size: 120px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+    #x-1 { top: 330px; }
+    #x-2 { top: 480px; }
+    #x-2 em { font-style: normal; color: #9fe0b4; }
+    #x-sub { position: absolute; left: 164px; top: 680px; font-size: 34px; font-weight: 500; color: rgba(246,247,244,.75); opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="ending" data-width="1920" data-height="1080">
+    <h1 id="x-1">The model understands.</h1>
+    <h1 id="x-2">The code <em>decides</em>.</h1>
+    <p id="x-sub">Sapling patient messaging · Phase 1 · 115 passing tests</p>
+  </div>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="ending"]');
+      function splitWords(el) {
+        const out = [];
+        [...el.childNodes].forEach((n) => {
+          if (n.nodeType === 3) {
+            n.textContent.split(/(\s+)/).forEach((t) => {
+              if (!t) return;
+              if (/^\s+$/.test(t)) out.push(document.createTextNode(t));
+              else { const s = document.createElement("span"); s.className = "w"; s.textContent = t; out.push(s); }
+            });
+          } else { n.classList.add("w"); out.push(n); }
+        });
+        el.replaceChildren(...out);
+        return el.querySelectorAll(".w");
+      }
+      const a = splitWords(root.querySelector("#x-1"));
+      const b = splitWords(root.querySelector("#x-2"));
+
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo(a, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, stagger: 0.1 }, 0.3);
+      tl.fromTo(b, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, stagger: 0.1 }, 1.2);
+      tl.fromTo("#x-sub", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 2.3);
+      window.__timelines["ending"] = tl;
+    })();
+  </script>
+</template>

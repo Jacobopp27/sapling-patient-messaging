@@ -1,0 +1,60 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #efeae2; font-family: "Inter", sans-serif; color: #1d2420; overflow: hidden; }
+    #root .w { display: inline-block; }
+    .u-pair { position: absolute; inset: 0; }
+    .u-q { position: absolute; top: 210px; filter: drop-shadow(0 12px 28px rgba(0,0,0,.12)); opacity: 0; }
+    .u-a { position: absolute; left: 160px; top: 340px; width: 1152px; filter: drop-shadow(0 18px 40px rgba(0,0,0,.14)); opacity: 0; }
+    #u-q1 { left: 1324px; width: 436px; }
+    #u-q2 { left: 624px; width: 1136px; }
+    .u-line { position: absolute; left: 160px; top: 760px; width: 1600px; font-size: 64px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; opacity: 0; }
+    .u-line em { font-style: normal; color: #276b3b; }
+    #u-flood { position: absolute; inset: 0; background: #1f5c43; clip-path: inset(100% 0 0 0); }
+  </style>
+  <div id="root" data-composition-id="rules" data-width="1920" data-height="1080">
+    <img class="u-q" id="u-q1" src="assets/shots/bubble-booked-q.png" alt="is it booked yet?" />
+    <img class="u-a" id="u-a1" src="assets/shots/bubble-not-yet.png" alt="Not yet, pending staff review" />
+    <p class="u-line" id="u-l1">It never says “booked”. <em>Only staff book.</em></p>
+    <img class="u-q" id="u-q2" src="assets/shots/bubble-pills-q.png" alt="should I take two pills?" />
+    <img class="u-a" id="u-a2" src="assets/shots/bubble-no-advice.png" alt="I can't give medical advice" />
+    <p class="u-line" id="u-l2">It never gives medical advice. <em>A clinician reviews it.</em></p>
+    <div id="u-flood"></div>
+  </div>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="rules"]');
+      function splitWords(el) {
+        const out = [];
+        [...el.childNodes].forEach((n) => {
+          if (n.nodeType === 3) {
+            n.textContent.split(/(\s+)/).forEach((t) => {
+              if (!t) return;
+              if (/^\s+$/.test(t)) out.push(document.createTextNode(t));
+              else { const s = document.createElement("span"); s.className = "w"; s.textContent = t; out.push(s); }
+            });
+          } else { n.classList.add("w"); out.push(n); }
+        });
+        el.replaceChildren(...out);
+        return el.querySelectorAll(".w");
+      }
+      const l1 = splitWords(root.querySelector("#u-l1"));
+      const l2 = splitWords(root.querySelector("#u-l2"));
+
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#u-q1", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 0.15);
+      tl.fromTo("#u-a1", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.7, ease: "expo.out" }, 0.9);
+      tl.set("#u-l1", { opacity: 1 }, 1.7);
+      tl.fromTo(l1, { opacity: 0, color: "#b9c0bb" }, { opacity: 1, color: "#1d2420", duration: 0.1, stagger: 0.09 }, 1.7);
+
+      tl.to(["#u-q1", "#u-a1", "#u-l1"], { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 4.7);
+      tl.fromTo("#u-q2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 4.8);
+      tl.fromTo("#u-a2", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.7, ease: "expo.out" }, 5.8);
+      tl.set("#u-l2", { opacity: 1 }, 6.6);
+      tl.fromTo(l2, { opacity: 0, color: "#b9c0bb" }, { opacity: 1, color: "#1d2420", duration: 0.1, stagger: 0.09 }, 6.6);
+
+      // Colour flood up into the machine's green.
+      tl.fromTo("#u-flood", { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: 0.45, ease: "power2.inOut" }, 9.45);
+      window.__timelines["rules"] = tl;
+    })();
+  </script>
+</template>

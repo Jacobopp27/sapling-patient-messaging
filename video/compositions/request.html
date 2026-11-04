@@ -1,0 +1,83 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #fbfcfa; font-family: "Inter", sans-serif; color: #1d2420; overflow: hidden; }
+    #root .w { display: inline-block; }
+    #r-stage { position: absolute; inset: 0; }
+    #r-phone { position: absolute; left: 0; top: 0; bottom: 0; width: 820px; background: #efeae2; border-right: 1px solid #dfe4dd; }
+    .r-label { position: absolute; top: 96px; font-size: 28px; font-weight: 600; color: #69736c; }
+    #r-l1 { left: 96px; } #r-l2 { left: 900px; }
+    #r-tue { position: absolute; left: 214px; top: 220px; width: 550px; filter: drop-shadow(0 12px 28px rgba(0,0,0,.12)); opacity: 0; }
+    #r-thu { position: absolute; left: 70px; top: 400px; width: 694px; filter: drop-shadow(0 12px 28px rgba(0,0,0,.12)); opacity: 0; }
+    #r-count { position: absolute; left: 900px; top: 150px; font-size: 40px; font-weight: 500; opacity: 0; }
+    #r-count strong { font-size: 64px; font-weight: 800; color: #276b3b; margin-right: 10px; }
+    #r-card { position: absolute; left: 900px; top: 250px; width: 965px; height: 560px; }
+    #r-card img { position: absolute; left: 0; top: 0; width: 965px; filter: drop-shadow(0 18px 40px rgba(0,0,0,.14)); opacity: 0; }
+    .r-ring { position: absolute; border: 4px solid #276b3b; border-radius: 12px; opacity: 0; }
+    #r-ring1 { left: 6px; top: 70px; width: 950px; height: 58px; }
+    #r-ring2 { left: 6px; top: 256px; width: 560px; height: 42px; }
+    .r-line { position: absolute; left: 96px; top: 870px; width: 1760px; font-size: 52px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; opacity: 0; }
+    .r-line em { font-style: normal; color: #276b3b; }
+  </style>
+  <div id="root" data-composition-id="request" data-width="1920" data-height="1080">
+    <div id="r-stage">
+      <div id="r-phone"></div>
+      <div class="r-label" id="r-l1">Alex’s phone</div>
+      <div class="r-label" id="r-l2">Staff console</div>
+      <img id="r-tue" src="assets/shots/bubble-tuesday.png" alt="Tuesday afternoon works" />
+      <img id="r-thu" src="assets/shots/bubble-thursday.png" alt="actually can we do Thursday instead" />
+      <div id="r-count"><strong>1</strong>appointment request in the queue</div>
+      <div id="r-card">
+        <img id="r-card-a" src="assets/shots/card-created.png" alt="Appointment request created" />
+        <img id="r-card-b" src="assets/shots/card-updated.png" alt="The same appointment request, updated" />
+        <div class="r-ring" id="r-ring1"></div>
+        <div class="r-ring" id="r-ring2"></div>
+      </div>
+      <p class="r-line" id="r-line1">It becomes a <em>request</em> for staff. Not a booking.</p>
+      <p class="r-line" id="r-line2">“Thursday instead”: the <em>same</em> request, updated. Never a duplicate.</p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="request"]');
+      function splitWords(el) {
+        const out = [];
+        [...el.childNodes].forEach((n) => {
+          if (n.nodeType === 3) {
+            n.textContent.split(/(\s+)/).forEach((t) => {
+              if (!t) return;
+              if (/^\s+$/.test(t)) out.push(document.createTextNode(t));
+              else { const s = document.createElement("span"); s.className = "w"; s.textContent = t; out.push(s); }
+            });
+          } else { n.classList.add("w"); out.push(n); }
+        });
+        el.replaceChildren(...out);
+        return el.querySelectorAll(".w");
+      }
+      const l1 = splitWords(root.querySelector("#r-line1"));
+      const l2 = splitWords(root.querySelector("#r-line2"));
+
+      const tl = gsap.timeline({ paused: true });
+      // Whip in from the right, matching the machine's exit.
+      tl.fromTo("#r-stage", { x: 1920, filter: "blur(16px)" }, { x: 0, filter: "blur(0px)", duration: 0.45, ease: "expo.out" }, 0);
+      tl.fromTo("#r-tue", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 0.5);
+      tl.fromTo("#r-card-a", { opacity: 0, y: -60 }, { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 1.15);
+      tl.fromTo("#r-count", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18 }, 1.6);
+      tl.set("#r-line1", { opacity: 1 }, 1.8);
+      tl.fromTo(l1, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067 }, 1.8);
+
+      // "Thursday instead": the same card swaps to its updated self.
+      tl.to("#r-line1", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 5.4);
+      tl.fromTo("#r-thu", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 5.5);
+      tl.to("#r-card-a", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 6.1);
+      tl.fromTo("#r-card-b", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 6.25);
+      tl.set("#r-line2", { opacity: 1 }, 6.8);
+      tl.fromTo(l2, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067 }, 6.8);
+      tl.fromTo("#r-ring1", { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 7.9);
+      tl.fromTo("#r-ring2", { opacity: 0, scale: 1.06 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 8.5);
+
+      // Blur swap to the next beat.
+      tl.to("#r-stage", { opacity: 0, filter: "blur(10px)", duration: 0.2, ease: "power3.in" }, 11.7);
+      window.__timelines["request"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,52 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #efeae2; font-family: "Inter", sans-serif; color: #1d2420; overflow: hidden; }
+    #root .w { display: inline-block; }
+    #hook-kicker { position: absolute; left: 160px; top: 120px; font-size: 30px; font-weight: 500; color: #69736c; }
+    #hook-out { position: absolute; left: 136px; top: 210px; width: 1152px; filter: drop-shadow(0 18px 40px rgba(0,0,0,.14)); }
+    #hook-yes { position: absolute; left: 1514px; top: 440px; width: 270px; filter: drop-shadow(0 18px 40px rgba(0,0,0,.14)); opacity: 0; }
+    #hook-q { position: absolute; left: 160px; top: 620px; font-size: 76px; font-weight: 700; letter-spacing: -0.02em; }
+    #hook-a { position: absolute; left: 160px; top: 740px; width: 1500px; font-size: 44px; font-weight: 500; line-height: 1.3; }
+    #hook-a em { font-style: normal; color: #276b3b; font-weight: 700; }
+    #hook-flood { position: absolute; inset: 0; background: #1f5c43; clip-path: circle(0px at 1650px 490px); }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
+    <div id="hook-kicker">Wednesday, Nov 4, 10:00 a.m. · Sapling Family Clinic texts Alex</div>
+    <img id="hook-out" src="assets/shots/bubble-outreach.png" alt="Clinic outreach message" />
+    <img id="hook-yes" src="assets/shots/bubble-yes.png" alt="Alex replies yes" />
+    <h1 id="hook-q">Who answers Alex?</h1>
+    <p id="hook-a">An <em>agent</em>: it answers from the data and hands the rest to staff.</p>
+    <div id="hook-flood"></div>
+  </div>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="hook"]');
+      function splitWords(el) {
+        const out = [];
+        [...el.childNodes].forEach((n) => {
+          if (n.nodeType === 3) {
+            n.textContent.split(/(\s+)/).forEach((t) => {
+              if (!t) return;
+              if (/^\s+$/.test(t)) out.push(document.createTextNode(t));
+              else { const s = document.createElement("span"); s.className = "w"; s.textContent = t; out.push(s); }
+            });
+          } else { n.classList.add("w"); out.push(n); }
+        });
+        el.replaceChildren(...out);
+        return el.querySelectorAll(".w");
+      }
+      const q = splitWords(root.querySelector("#hook-q"));
+      const a = splitWords(root.querySelector("#hook-a"));
+
+      const tl = gsap.timeline({ paused: true });
+      // Frame 0 is the thumbnail: the clinic's message is already on Alex's phone.
+      tl.fromTo("#hook-out", { x: -30 }, { x: 0, duration: 1.2, ease: "expo.out" }, 0);
+      tl.fromTo("#hook-yes", { opacity: 0, scale: 0.7, x: 60 }, { opacity: 1, scale: 1, x: 0, duration: 0.5, ease: "back.out(1.6)" }, 2.0);
+      tl.fromTo(q, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067, ease: "power2.out" }, 3.0);
+      tl.fromTo(a, { opacity: 0, color: "#b9c0bb" }, { opacity: 1, color: "#1d2420", duration: 0.1, stagger: 0.08, ease: "none" }, 4.2);
+      // Colour flood out of Alex's "yes": the next world is the agent.
+      tl.fromTo("#hook-flood", { clipPath: "circle(0px at 1650px 490px)" }, { clipPath: "circle(2300px at 1650px 490px)", duration: 0.65, ease: "power2.inOut" }, 8.3);
+      window.__timelines["hook"] = tl;
+    })();
+  </script>
+</template>

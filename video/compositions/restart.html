@@ -1,0 +1,57 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #efeae2; font-family: "Inter", sans-serif; color: #1d2420; overflow: hidden; }
+    #root .w { display: inline-block; }
+    #s-off { position: absolute; left: 160px; top: 110px; font-size: 64px; font-weight: 700; letter-spacing: -0.02em; opacity: 0; }
+    #s-on { position: absolute; left: 160px; top: 110px; font-size: 64px; font-weight: 700; letter-spacing: -0.02em; opacity: 0; color: #276b3b; }
+    #s-ask { position: absolute; left: 1112px; top: 250px; width: 648px; filter: drop-shadow(0 12px 28px rgba(0,0,0,.12)); opacity: 0; }
+    #s-list { position: absolute; left: 160px; top: 380px; width: 1152px; filter: drop-shadow(0 18px 40px rgba(0,0,0,.14)); opacity: 0; }
+    #s-line { position: absolute; left: 160px; top: 790px; width: 1600px; font-size: 52px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; opacity: 0; }
+    #s-line em { font-style: normal; color: #276b3b; }
+    #s-dark { position: absolute; inset: 0; background: #1d2420; opacity: 0; }
+    #s-flood { position: absolute; inset: 0; background: #1f5c43; clip-path: inset(0 100% 0 0); }
+  </style>
+  <div id="root" data-composition-id="restart" data-width="1920" data-height="1080">
+    <p id="s-off">The server stops…</p>
+    <div id="s-dark"></div>
+    <p id="s-on">…and starts again.</p>
+    <img id="s-ask" src="assets/shots/bubble-asked.png" alt="what have I asked you for so far?" />
+    <img id="s-list" src="assets/shots/bubble-list.png" alt="The list of pending requests after the restart" />
+    <p id="s-line">Messages and requests live in <em>SQLite</em>: nothing is lost.</p>
+    <div id="s-flood"></div>
+  </div>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="restart"]');
+      function splitWords(el) {
+        const out = [];
+        [...el.childNodes].forEach((n) => {
+          if (n.nodeType === 3) {
+            n.textContent.split(/(\s+)/).forEach((t) => {
+              if (!t) return;
+              if (/^\s+$/.test(t)) out.push(document.createTextNode(t));
+              else { const s = document.createElement("span"); s.className = "w"; s.textContent = t; out.push(s); }
+            });
+          } else { n.classList.add("w"); out.push(n); }
+        });
+        el.replaceChildren(...out);
+        return el.querySelectorAll(".w");
+      }
+      const line = splitWords(root.querySelector("#s-line"));
+
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#s-off", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 0.1);
+      // The lights go down while the process is stopped, then come back.
+      tl.fromTo("#s-dark", { opacity: 0 }, { opacity: 0.55, duration: 0.35, ease: "power2.inOut" }, 0.9);
+      tl.to("#s-off", { opacity: 0, duration: 0.15 }, 1.5);
+      tl.to("#s-dark", { opacity: 0, duration: 0.35, ease: "power2.inOut" }, 1.7);
+      tl.fromTo("#s-on", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 1.8);
+      tl.fromTo("#s-ask", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 2.5);
+      tl.fromTo("#s-list", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.7, ease: "expo.out" }, 3.3);
+      tl.set("#s-line", { opacity: 1 }, 4.3);
+      tl.fromTo(line, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067 }, 4.3);
+      tl.fromTo("#s-flood", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "power2.inOut" }, 7.45);
+      window.__timelines["restart"] = tl;
+    })();
+  </script>
+</template>
