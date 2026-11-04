@@ -66,6 +66,41 @@ export function draftUpdate(r: Request, outcome: Outcome, appointment?: { date: 
   }
 }
 
+export interface BookingState {
+  /** Still as staff booked it, moved by a later change staff carried out, or cancelled by one. */
+  state: 'booked' | 'moved' | 'cancelled';
+  /** Where the visit is now (the original slot if it was cancelled). */
+  appointment: { date: string; time: string; provider: string };
+  /** The change request that moved or cancelled it. */
+  change?: Request;
+  /** A change Alex asked for that staff haven't carried out yet. */
+  pendingChange?: Request;
+}
+
+/**
+ * What became of a visit staff booked from a request. Changes point at the visit they change by
+ * "<type> <date> <time>", so follow them in order: booked Tue 2:00 → moved to Thu 1:30 → cancelled.
+ */
+export function bookingState(r: Request, all: Request[]): BookingState | undefined {
+  if (r.type !== 'appointment_request' || r.resolution?.outcome !== 'booked' || !r.resolution.appointment) return undefined;
+  const reason = String(r.details.reason);
+  const changesTo = (a: { date: string; time: string }) => all.filter((c) => c.type === 'appointment_change' && c.details.appointment === `${reason} ${a.date} ${a.time}`);
+  let appointment = r.resolution.appointment;
+  let state: BookingState['state'] = 'booked';
+  let change: Request | undefined;
+  for (let hops = 0; hops < all.length; hops++) {
+    const done = changesTo(appointment).filter((c) => c.resolution?.outcome === 'done').at(-1);
+    if (!done) break;
+    change = done;
+    if (done.details.action === 'cancel' || !done.resolution?.appointment) { state = 'cancelled'; break; }
+    appointment = done.resolution.appointment;
+    state = 'moved';
+  }
+  const pendingChange = state === 'cancelled' ? undefined
+    : changesTo(appointment).find((c) => c.status === 'pending_staff' || c.status === 'in_progress');
+  return { state, appointment, change, pendingChange };
+}
+
 export class ResolveError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
 }

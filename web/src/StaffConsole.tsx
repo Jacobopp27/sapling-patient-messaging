@@ -3,7 +3,7 @@
 // not required, so this panel is a role in the demo, not a permission boundary.
 import { useEffect, useState } from 'react';
 import { formatDate, formatTime } from '../../server/clock';
-import { draftUpdate, needsAppointment, OUTCOME_LABEL, OUTCOMES, type ResolveInput } from '../../server/resolutions';
+import { bookingState, draftUpdate, needsAppointment, OUTCOME_LABEL, OUTCOMES, type ResolveInput } from '../../server/resolutions';
 import type { ScriptStep } from '../../server/script';
 import type { Message, ReplySource } from '../../server/types';
 import type { AppState, QueueRequest } from './api';
@@ -100,7 +100,7 @@ function StaffQueue({ requests, busy, onShowSources, onStatus, onResolve }: {
   const isOpen = (r: QueueRequest) => r.status === 'pending_staff' || r.status === 'in_progress';
   const open = requests.filter(isOpen).sort((a, b) => Number(b.type === 'emergency') - Number(a.type === 'emergency'));
   const closed = requests.filter((r) => !isOpen(r));
-  const card = (r: QueueRequest) => <RequestCard key={r.id} r={r} busy={busy} onShowSources={onShowSources} onStatus={onStatus} onResolve={onResolve} />;
+  const card = (r: QueueRequest) => <RequestCard key={r.id} r={r} all={requests} busy={busy} onShowSources={onShowSources} onStatus={onStatus} onResolve={onResolve} />;
 
   return (
     <section>
@@ -113,13 +113,16 @@ function StaffQueue({ requests, busy, onShowSources, onStatus, onResolve }: {
   );
 }
 
-function RequestCard({ r, busy, onShowSources, onStatus, onResolve }: {
-  r: QueueRequest; busy: boolean; onShowSources: (ids: number[]) => void; onStatus: (id: number, status: string) => void;
+function RequestCard({ r, all, busy, onShowSources, onStatus, onResolve }: {
+  r: QueueRequest; all: QueueRequest[]; busy: boolean; onShowSources: (ids: number[]) => void; onStatus: (id: number, status: string) => void;
   onResolve: (id: number, body: ResolveInput) => void;
 }) {
   const [raw, setRaw] = useState(false);
   const [resolving, setResolving] = useState(false);
   const res = r.resolution;
+  // A visit staff booked may have been moved or cancelled since by a change request.
+  const booking = bookingState(r, all);
+  const at = (a: { date: string; time: string }) => `${formatDate(a.date)} at ${formatTime(a.time)}`;
   const entries = Object.entries(r.details).filter(([, v]) => v !== undefined && v !== null && !(Array.isArray(v) && v.length === 0));
   const { label: _label, missing: _missing, ...record } = r;
   return (
@@ -140,7 +143,18 @@ function RequestCard({ r, busy, onShowSources, onStatus, onResolve }: {
           {res.appointment && <> · {formatDate(res.appointment.date)} at {formatTime(res.appointment.time)} · {res.appointment.provider}</>}
           {res.note && <> · <em>{res.note}</em></>}
         </div>
-      ) : r.missing.length === 0
+      ) : null}
+      {booking && booking.state !== 'booked' && (
+        <div className="followup">
+          {booking.state === 'moved' ? `Moved to ${at(booking.appointment)}` : 'Cancelled'} by change #{booking.change!.id}. This booking is no longer the active one.
+        </div>
+      )}
+      {booking?.pendingChange && (
+        <div className="followup pending">
+          Alex asked to {booking.pendingChange.details.action === 'cancel' ? 'cancel this visit' : `move this visit to ${formatDate(String(booking.pendingChange.details.preferred_date))}`}: change #{booking.pendingChange.id}, pending.
+        </div>
+      )}
+      {res ? null : r.missing.length === 0
         ? <div className="ready">Ready for staff: nothing to ask Alex</div>
         : <div className="missing">Needs follow-up: missing {r.missing.join(', ')}</div>}
       <dl className="details">

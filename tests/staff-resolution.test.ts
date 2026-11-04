@@ -2,7 +2,7 @@
 // reports that back truthfully. The agent still can't book, approve or cancel anything itself.
 import { describe, expect, it } from 'vitest';
 import { checkReply } from '../server/agent/guards';
-import { draftUpdate, ResolveError, resolveRequest } from '../server/resolutions';
+import { bookingState, draftUpdate, ResolveError, resolveRequest } from '../server/resolutions';
 import { SCRIPT } from '../server/script';
 import { opening, openService, tempDbFile } from './helpers';
 
@@ -55,7 +55,8 @@ describe('a visit staff booked', () => {
   it('"move the recheck to Friday" after it was booked asks staff to move that booking', async () => {
     const svc = await setup();
     bookRecheck(svc);
-    expect(await ask(svc, 'can we move the recheck to Friday?')).toMatch(/asked the clinic staff to move your BP recheck .* Thursday, Nov 12 at 1:30 p\.m\. to Friday, Nov 6/);
+    // The booking is next week, so "Friday" is that week's Friday (Nov 13), not tomorrow-ish Nov 6.
+    expect(await ask(svc, 'can we move the recheck to Friday?')).toMatch(/asked the clinic staff to move your BP recheck .* Thursday, Nov 12 at 1:30 p\.m\. to Friday, Nov 13, any time that day\. I don't see an open time/);
     const change = svc.store.listRequests(pid).find((r) => r.type === 'appointment_change')!;
     resolveRequest(svc, change.id, { outcome: 'done', date: '2026-11-13', time: '10:00' });
     expect(await ask(svc, 'when is my next appointment?')).toMatch(/^Your next booked appointment is your BP recheck with Dr\. Priya Lee on Friday, Nov 13 at 10:00 a\.m\./);
@@ -158,3 +159,65 @@ describe('the staff action validates its input', () => {
     expect(await ask(svc, 'is it booked yet?')).toMatch(/Tuesday, Nov 10 at 2:00 p\.m\./);
   });
 });
+
+describe('a booked visit that Alex moves or cancels', () => {
+  /** Your exact thread: "tuesday 2pm works", staff book Tue 2:00, then "actually I need to change it to Thursday". */
+  async function bookedTuesday() {
+    const svc = openService(tempDbFile());
+    svc.sendClinicMessage(SCRIPT[0].body);
+    await svc.receivePatientMessage('yes');
+    await svc.receivePatientMessage('tuesday 2pm works');
+    resolveRequest(svc, 1, { outcome: 'booked', date: '2026-11-10', time: '14:00' });
+    return svc;
+  }
+
+  it('"change it to Thursday" means Thursday of that week (Nov 12, with openings), not tomorrow', async () => {
+    const svc = await bookedTuesday();
+    const reply = await ask(svc, 'actually I need to change it to Thursday');
+    expect(reply).toMatch(/move your BP recheck with Dr\. Priya Lee on Tuesday, Nov 10 at 2:00 p\.m\. to Thursday, Nov 12, any time that day\. Open times then: 1:30 p\.m\. or 4:00 p\.m\./);
+    expect(svc.store.listRequests(pid)[1].details).toMatchObject({ action: 'reschedule', preferred_date: '2026-11-12' });
+  });
+
+  it('while the move is pending, the Tuesday booking stays and the agent says the move is pending', async () => {
+    const svc = await bookedTuesday();
+    await svc.receivePatientMessage('actually I need to change it to Thursday');
+    expect(await ask(svc, 'is it booked yet?')).toBe(
+      'Yes. Clinic staff booked your BP recheck with Dr. Priya Lee for Tuesday, Nov 10 at 2:00 p.m. '
+      + "You've asked to move it to Thursday, Nov 12; that's pending staff review, so it stays as it is for now.",
+    );
+    const [first] = svc.store.listRequests(pid);
+    expect(bookingState(first, svc.store.listRequests(pid))).toMatchObject({ state: 'booked', pendingChange: { id: 2 } });
+  });
+
+  it('once staff move it, the Tuesday booking is replaced everywhere', async () => {
+    const svc = await bookedTuesday();
+    await svc.receivePatientMessage('actually I need to change it to Thursday');
+    resolveRequest(svc, 2, { outcome: 'done', date: '2026-11-12', time: '13:30' });
+    expect(await ask(svc, 'is it booked yet?')).toBe('Yes. Clinic staff moved your BP recheck to Thursday, Nov 12 at 1:30 p.m., with Dr. Priya Lee. If you need to change it, reply here.');
+    const next = await ask(svc, 'when is my next appointment?');
+    expect(next).toMatch(/^Your next booked appointment is your BP recheck with Dr\. Priya Lee on Thursday, Nov 12 at 1:30 p\.m\./);
+    expect(next).not.toMatch(/Nov 10/);
+    expect(await ask(svc, 'what have I asked you for so far?')).toMatch(/Your BP recheck with Dr\. Priya Lee: booked, then moved to Thursday, Nov 12 at 1:30 p\.m\./);
+    const all = svc.store.listRequests(pid);
+    expect(bookingState(all[0], all)).toMatchObject({ state: 'moved', appointment: { date: '2026-11-12', time: '13:30' }, change: { id: 2 } });
+  });
+
+  it('a second move follows the first, and a cancellation ends it', async () => {
+    const svc = await bookedTuesday();
+    await svc.receivePatientMessage('actually I need to change it to Thursday');
+    resolveRequest(svc, 2, { outcome: 'done', date: '2026-11-12', time: '13:30' });
+    await svc.receivePatientMessage('can I move it to 4pm?');
+    const second = svc.store.listRequests(pid).at(-1)!;
+    expect(second.details).toMatchObject({ type: 'BP recheck', current_date: '2026-11-12', current_time: '13:30' });
+    resolveRequest(svc, second.id, { outcome: 'done', date: '2026-11-12', time: '16:00' });
+    expect(await ask(svc, 'is it booked yet?')).toMatch(/moved your BP recheck to Thursday, Nov 12 at 4:00 p\.m\./);
+
+    await svc.receivePatientMessage('please cancel it');
+    const cancel = svc.store.listRequests(pid).at(-1)!;
+    expect(cancel.details).toMatchObject({ action: 'cancel', current_time: '16:00' });
+    resolveRequest(svc, cancel.id, { outcome: 'done' });
+    expect(await ask(svc, 'is it booked yet?')).toMatch(/^Your BP recheck was cancelled by the clinic staff, as you asked/);
+    expect(await ask(svc, 'when is my next appointment?')).toMatch(/^Your next booked appointment is your annual physical/);
+  });
+});
+

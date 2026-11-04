@@ -2,6 +2,7 @@
 // from templates. Patient-facing safety wording lives here, not in a model prompt.
 import { addDays, federalHoliday, formatDate, formatTime, resolveWeekday, weekdayOf, WEEKDAYS, windowOf } from '../clock.js';
 import { BUSINESS_HOURS, type Appointment, type Patient } from '../data.js';
+import { bookingState } from '../resolutions.js';
 import type { AgentTools } from '../tools.js';
 import type { Message, Pending, ReplySource, Request } from '../types.js';
 import type { Interpretation, Intent } from './interpretation.js';
@@ -63,14 +64,19 @@ function bookedAppointments(tools: AgentTools): Appointment[] {
   const fromStaff = resolved
     .filter((r) => r.type === 'appointment_request' && r.resolution!.outcome === 'booked' && r.resolution!.appointment)
     .map((r): Appointment => ({ ...r.resolution!.appointment!, type: String(r.details.reason), status: 'booked' }));
-  return [...fromRecord, ...fromStaff]
-    .flatMap((a) => {
+  // Follow each visit through the changes staff carried out: moved (maybe more than once) or cancelled.
+  const follow = (a: Appointment): Appointment[] => {
+    for (let hops = 0; hops < changes.length; hops++) {
       const change = changes.filter((c) => c.details.appointment === appointmentKey(a)).at(-1);
       if (!change) return [a];
       if (change.details.action === 'cancel' || !change.resolution!.appointment) return [];
       const moved = change.resolution!.appointment;
-      return [{ ...a, date: moved.date, time: moved.time, provider: moved.provider }];
-    })
+      a = { ...a, date: moved.date, time: moved.time, provider: moved.provider };
+    }
+    return [a];
+  };
+  return [...fromRecord, ...fromStaff]
+    .flatMap(follow)
     .filter((a) => a.date >= today)
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 }
@@ -264,12 +270,28 @@ function appointmentStatus(turn: Turn): HandlerResult {
     // Staff may have closed it from the queue. Report that, never "you have no request".
     const last = tools.requests('appointment_request').at(-1);
     const res = last?.resolution;
-    if (last && res?.outcome === 'booked' && res.appointment) {
-      const a = res.appointment;
-      return {
-        body: `Yes. ${endSentence(`Clinic staff booked your ${last.details.reason} with ${a.provider} for ${formatDate(a.date, today)} at ${formatTime(a.time)}`)} If you need to change it, reply here.`,
-        source: 'requests',
-      };
+    const booking = last && bookingState(last, tools.requests());
+    if (last && booking) {
+      const a = booking.appointment;
+      const at = `${formatDate(a.date, today)} at ${formatTime(a.time)}`;
+      if (booking.state === 'cancelled') {
+        const d = last.details;
+        return {
+          body: `Your ${d.reason} was cancelled by the clinic staff, as you asked, so there's no visit from it on your schedule. Would you like me to request a new one?`,
+          source: 'requests',
+          pending: { kind: 'appointment_offer', reason: String(d.reason), provider: String(d.provider), context: d.context as string | undefined },
+        };
+      }
+      const done = booking.state === 'moved'
+        ? `Yes. ${endSentence(`Clinic staff moved your ${last.details.reason} to ${at}, with ${a.provider}`)}`
+        : `Yes. ${endSentence(`Clinic staff booked your ${last.details.reason} with ${a.provider} for ${at}`)}`;
+      const asked = booking.pendingChange;
+      const change = asked
+        ? asked.details.action === 'cancel'
+          ? " You've asked to cancel it; that's pending staff review, so it stays on your schedule for now."
+          : ` You've asked to move it to ${formatDate(String(asked.details.preferred_date), today)}; that's pending staff review, so it stays as it is for now.`
+        : ' If you need to change it, reply here.';
+      return { body: `${done}${change}`, source: 'requests' };
     }
     if (last && res?.outcome === 'not_booked') {
       const d = last.details;
@@ -384,10 +406,18 @@ function changeAppointment(turn: Turn, i: Interpretation): HandlerResult {
     };
   }
 
-  // Reschedule: needs a new day. "Thursday" means the next Thursday; the date is said back so Alex can correct it.
+  // Reschedule: needs a new day. For a visit in the next two weeks, "Thursday" means the Thursday
+  // in the visit's week (Tue Nov 10 → Thu Nov 12), like "Thursday instead". For a visit further out,
+  // or when that's the visit's own day, it's the next Thursday. The date is said back to Alex.
   const time = i.time;
   let date = i.date ?? (i.topic === 'tomorrow' ? addDays(today, 1) : undefined);
-  if (!date && i.weekday) date = resolveWeekday(today, WEEKDAYS.indexOf(i.weekday));
+  if (!date && i.weekday) {
+    const wd = WEEKDAYS.indexOf(i.weekday);
+    const sameWeek = booked.date <= addDays(today, 14) ? resolveWeekday(today, wd, booked.date) : undefined;
+    date = sameWeek && sameWeek !== booked.date ? sameWeek : resolveWeekday(today, wd);
+  }
+  // Only a time ("move it to 4pm"): the same day as the visit.
+  if (!date && time) date = booked.date;
   const pending: Pending = { kind: 'reschedule_time', appointment };
   if (!date) {
     return { body: `Sure. What day and time would you like instead of your ${current}?`, source: 'clarifying', pending };
@@ -405,7 +435,9 @@ function changeAppointment(turn: Turn, i: Interpretation): HandlerResult {
     patient_message: inbound.body,
   }, [inbound.id]);
   const to = `${formatDate(date, today)}, ${time ? `${picked ? 'at' : 'around'} ${formatTime(time)}` : windowText(window)}`;
-  const slotText = picked ? '' : slots.length ? ` ${endSentence(`Open times then: ${slotList(slots)}`)}` : '';
+  const slotText = picked ? '' : slots.length
+    ? ` ${endSentence(`Open times then: ${slotList(slots)}`)}`
+    : ` I don't see an open time with ${booked.provider} then, so staff will review options with your preference in mind.`;
   return {
     body: `I've asked the clinic staff to move your ${current} to ${endSentence(to)}${slotText} This is a request, not a booking: your current appointment stays as it is until staff confirm a new time. ${NOT_MONITORED}`,
     source: 'staff_handoff',
@@ -593,7 +625,12 @@ function listRequests(turn: Turn): HandlerResult {
     const res = r.resolution;
     if (!res) return r.status === 'completed' ? 'marked completed' : 'closed';
     switch (res.outcome) {
-      case 'booked': return `booked for ${formatDate(res.appointment!.date, today)} at ${formatTime(res.appointment!.time)}`;
+      case 'booked': {
+        const b = bookingState(r, mine)!;
+        const at = `${formatDate(b.appointment.date, today)} at ${formatTime(b.appointment.time)}`;
+        if (b.state === 'cancelled') return 'booked, then cancelled';
+        return b.state === 'moved' ? `booked, then moved to ${at}` : `booked for ${at}`;
+      }
       case 'not_booked': return "staff couldn't book it";
       case 'approved': return 'approved';
       case 'denied': return 'not approved';
