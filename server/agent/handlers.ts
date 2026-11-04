@@ -14,6 +14,8 @@ export interface Turn {
   pendingMessageId?: number;
   /** For an appointment_reason follow-up: Alex's text is the reason. */
   reasonOverride?: string;
+  /** The clinic's latest appointment offer still waiting for a request, even if other replies came after it. */
+  openOffer?: { pending: Pending; messageId: number };
 }
 
 export interface HandlerResult { body: string; source: ReplySource; pending?: Pending }
@@ -82,12 +84,18 @@ function askForTime(turn: Turn, reason: string, provider: string, context: strin
   };
 }
 
+type Offer = Extract<Pending, { kind: 'appointment_offer' | 'appointment_time' }>;
+const asOffer = (p?: Pending): Offer | undefined => (p?.kind === 'appointment_offer' || p?.kind === 'appointment_time' ? p : undefined);
+
 function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
   const { tools, inbound, pending } = turn;
   const patient = tools.patient('last_visit');
   const today = tools.now().date;
   const existing = tools.openRequests('appointment_request').at(-1);
-  const offer = pending && (pending.kind === 'appointment_offer' || pending.kind === 'appointment_time') ? pending : undefined;
+  // What the last message offered, or else the clinic's offer still open further up the thread.
+  const fromLast = asOffer(pending);
+  const offer = fromLast ?? asOffer(turn.openOffer?.pending);
+  const offerMessageId = fromLast ? turn.pendingMessageId : turn.openOffer?.messageId;
   const fromReasonPrompt = pending?.kind === 'appointment_reason' ? pending : undefined;
 
   const reason = turn.reasonOverride ?? (existing?.details.reason as string | undefined) ?? offer?.reason;
@@ -95,7 +103,7 @@ function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
   const context = (existing?.details.context as string | undefined) ?? offer?.context;
   // Link the clinic's offer (and Alex's "yes") to the request, so staff see where it came from.
   const priorSources = offer?.kind === 'appointment_time' ? offer.sourceMessageIds ?? []
-    : offer && turn.pendingMessageId ? [turn.pendingMessageId] : [];
+    : offer && offerMessageId ? [offerMessageId] : [];
 
   const time = i.time ?? fromReasonPrompt?.time;
   let date = i.date ?? (i.topic === 'tomorrow' ? addDays(today, 1) : undefined);

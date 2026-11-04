@@ -6,7 +6,7 @@ import { pendingFromClinicMessage } from './agent/outbound.js';
 import { ruleInterpreter } from './agent/ruleInterpreter.js';
 import type { ClinicData } from './data.js';
 
-import type { DataStore, Message } from './types.js';
+import type { DataStore, Message, Pending } from './types.js';
 
 export class ConversationService {
   /** Messages are handled one at a time so two quick replies can't race on the same request. */
@@ -51,9 +51,24 @@ export class ConversationService {
    * By default it answers the latest outbound message. If Alex swiped to reply to an older clinic
    * message, that message (and whatever it was waiting for) is used instead.
    */
+  /**
+   * The clinic's latest appointment offer that no request has come from yet. A reply in between
+   * that wasn't about the visit ("thursdar 1:30 works" not understood, or another question) must
+   * not make the agent forget what the clinic offered and ask Alex what the visit is for.
+   */
+  private openOffer(): { pending: Pending; messageId: number } | undefined {
+    const isOffer = (m: Message) => m.direction === 'outbound' && (m.meta.pending?.kind === 'appointment_offer' || m.meta.pending?.kind === 'appointment_time');
+    const offer = this.store.listMessages(this.patientId).reverse().find(isOffer);
+    if (!offer) return undefined;
+    const used = this.store.listRequests(this.patientId)
+      .some((r) => r.type === 'appointment_request' && r.sourceMessageIds.some((id) => id >= offer.id));
+    return used ? undefined : { pending: offer.meta.pending!, messageId: offer.id };
+  }
+
   receivePatientMessage(body: string, replyTo?: number): Promise<{ inbound: Message; reply: Message }> {
     const run = async () => {
       const quoted = this.quoted(replyTo);
+      const openOffer = this.openOffer();
       const previous = quoted?.direction === 'outbound' ? quoted : this.store.lastOutbound(this.patientId);
       const inbound = this.store.addMessage({
         patientId: this.patientId,
@@ -71,6 +86,7 @@ export class ConversationService {
         inbound,
         pending: previous?.meta.pending,
         pendingMessageId: previous?.id,
+        openOffer,
       });
       return { inbound, reply };
     };

@@ -8,11 +8,34 @@ import type { Intent, Interpretation, Interpreter, InterpreterContext } from './
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const WEEKDAY_RE = /\b(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(day|nesday|rsday|urday)?\b/i;
 
+function editDistance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const above = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return row[b.length];
+}
+
 function extractWeekday(text: string): string | undefined {
   const m = text.match(WEEKDAY_RE);
-  if (!m) return undefined;
-  const prefix = m[1].toLowerCase().slice(0, 3);
-  return WEEKDAYS.find((d) => d.startsWith(prefix));
+  if (m) {
+    const prefix = m[1].toLowerCase().slice(0, 3);
+    return WEEKDAYS.find((d) => d.startsWith(prefix));
+  }
+  // Typos ("thursdar", "wensday", "tuesdy"): a word one edit from a weekday name (two for longer
+  // words), with the same first letter, and close to only one day. "sunny" and "wedding" don't match.
+  for (const word of text.toLowerCase().match(/[a-z]{5,}/g) ?? []) {
+    const allowed = word.length >= 7 ? 2 : 1;
+    const close = WEEKDAYS.filter((d) => d[0] === word[0] && editDistance(word, d) <= allowed);
+    if (close.length === 1) return close[0];
+  }
+  return undefined;
 }
 
 function extractTime(text: string): string | undefined {
@@ -22,8 +45,8 @@ function extractTime(text: string): string | undefined {
     if (m[3].toLowerCase().startsWith('p')) h += 12;
     return `${String(h).padStart(2, '0')}:${m[2] ?? '00'}`;
   }
-  // "at 1:30" with no a.m./p.m.: read it inside clinic hours (9–11 → morning, 12–5 → afternoon).
-  const bare = text.match(/\bat (\d{1,2})(?::(\d{2}))?\b(?!\s*\/)/i);
+  // "at 1:30" or "1:30" with no a.m./p.m.: read it inside clinic hours (9–11 → morning, 12–5 → afternoon).
+  const bare = text.match(/\bat (\d{1,2})(?::(\d{2}))?\b(?!\s*\/)/i) ?? text.match(/\b(\d{1,2}):(\d{2})\b/);
   if (!bare) return undefined;
   const h = Number(bare[1]);
   if (h >= 1 && h <= 5) return `${String(h + 12).padStart(2, '0')}:${bare[2] ?? '00'}`;

@@ -3,6 +3,7 @@
 // interpreter can't understand (those must fail safe: offer staff, file nothing).
 import { describe, expect, it } from 'vitest';
 import { EMERGENCY_TEXT } from '../server/agent/guards';
+import { interpretWithRules } from '../server/agent/ruleInterpreter';
 import { SCRIPT } from '../server/script';
 import { CLAIMS_DONE, DOSING, opening, openService, PROMISES_TIME, tempDbFile } from './helpers';
 
@@ -121,5 +122,52 @@ describe('no variation claims a booking, promises a time or gives dosing advice'
     expect(reply.body).not.toMatch(PROMISES_TIME);
     expect(reply.body).not.toMatch(DOSING);
     expect(reply.meta.trace?.guards.reply).toBe('ok');
+  });
+});
+
+describe('the clinic offer is remembered across a message the agent did not understand', () => {
+  it('your exact thread: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works"', async () => {
+    const svc = await thread('slots');
+    const first = await svc.receivePatientMessage('thursdar 1:30 works');
+    expect(opening(first.reply.body)).toMatch(/requested a BP recheck .* Thursday, Nov 12, around 1:30 p\.m\./);
+    await svc.receivePatientMessage('book thursday');
+    const last = await svc.receivePatientMessage('Tuesday afternoon works');
+    const requests = svc.store.listRequests('pt_001');
+    expect(requests).toHaveLength(1);
+    expect(requests[0].details).toMatchObject({ reason: 'BP recheck', date: '2026-11-10', window: 'afternoon' });
+    expect(last.reply.body).not.toMatch(/What's the visit for/);
+  });
+
+  it('a question in between does not make the agent ask what the visit is for', async () => {
+    const svc = await thread('slots');
+    await svc.receivePatientMessage("what's the weather like?");
+    const { reply } = await svc.receivePatientMessage('book thursday');
+    expect(reply.body).not.toMatch(/What's the visit for/);
+    const [r] = svc.store.listRequests('pt_001');
+    expect(r.details).toMatchObject({ reason: 'BP recheck', provider: 'Dr. Priya Lee', date: '2026-11-12' });
+    expect(r.sourceMessageIds[0]).toBe(1); // still linked to the clinic's outreach
+  });
+
+  it('once a request came from the offer, a new unrelated visit still asks for its reason', async () => {
+    const svc = await thread('request');
+    svc.store.updateRequest(1, { status: 'cancelled' });
+    const { reply } = await svc.receivePatientMessage('can I book an appointment for Friday?');
+    expect(reply.body).toMatch(/What's the visit for\?/);
+  });
+});
+
+describe('weekday typos', () => {
+  const ctx = (text: string) => ({ text, thread: [], today: '2026-11-04', medications: ['Lisinopril'], appointmentTypes: ['Annual physical'] });
+  it.each([
+    ['thursdar 1:30 works', 'thursday', '13:30'],
+    ['wensday morning', 'wednesday', undefined],
+    ['tuesdy pm', 'tuesday', undefined],
+  ])('"%s" → %s', (text, weekday, time) => {
+    const i = interpretWithRules(ctx(text));
+    expect(i).toMatchObject({ intent: 'appointment_preference', weekday });
+    expect(i.time).toBe(time);
+  });
+  it.each(["it's sunny today", 'we have a wedding', 'the fridge broke'])('"%s" is not a weekday', (text) => {
+    expect(interpretWithRules(ctx(text)).weekday).toBeUndefined();
   });
 });

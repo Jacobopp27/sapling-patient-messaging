@@ -33,6 +33,8 @@ export interface AgentInput {
   inbound: Message;
   pending?: Pending;
   pendingMessageId?: number;
+  /** The clinic's latest appointment offer still waiting for a request, if any (see ConversationService). */
+  openOffer?: { pending: Pending; messageId: number };
 }
 
 export async function runAgent(input: AgentInput): Promise<Message> {
@@ -86,7 +88,7 @@ export async function runAgent(input: AgentInput): Promise<Message> {
   if (interpretation.possible_emergency) return emergency(['model flagged possible emergency'], { interpreter: interpreterName, interpretation });
 
   // 3. Decide and act in code. A pending "what's the visit for?" treats Alex's free text as the reason.
-  const turn: Turn = { tools, inbound, pending: input.pending, pendingMessageId: input.pendingMessageId };
+  const turn: Turn = { tools, inbound, pending: input.pending, pendingMessageId: input.pendingMessageId, openOffer: input.openOffer };
   if (input.pending?.kind === 'appointment_reason' && ['unknown', 'thanks', 'affirm'].includes(interpretation.intent)) {
     turn.reasonOverride = inbound.body.trim();
     interpretation = { ...interpretation, intent: 'appointment_preference' };
