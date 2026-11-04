@@ -1,5 +1,5 @@
 // Shared shapes for the store, the agent and the UI (web/ imports these as types only).
-import type { Details, RequestStatus, RequestType } from './requests';
+import type { Details, RequestStatus, RequestType } from './requests.js';
 
 export type Author = 'clinic' | 'patient' | 'agent';
 

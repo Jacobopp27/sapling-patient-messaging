@@ -3,8 +3,8 @@
 // never sees tools that act, and can't override the emergency guard or the reply guard.
 // Any failure (no key, network, refusal, bad JSON) makes the agent fall back to local rules.
 import Anthropic from '@anthropic-ai/sdk';
-import { WEEKDAYS } from '../clock';
-import { FAQ_TOPICS, INTENTS, RECORD_TOPICS, type Interpretation, type Interpreter, type InterpreterContext } from './interpretation';
+import { WEEKDAYS } from '../clock.js';
+import { FAQ_TOPICS, INTENTS, RECORD_TOPICS, type Interpretation, type Interpreter, type InterpreterContext } from './interpretation.js';
 
 /**
  * Claude mode needs a key. On the public hosted demo it also needs ALLOW_CLAUDE_MODE=true, so a

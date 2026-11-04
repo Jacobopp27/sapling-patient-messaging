@@ -1,12 +1,12 @@
 // The conversation, as used by the HTTP API, the tests and the script runner.
-import { runAgent } from './agent/agent';
-import { claudeInterpreter, hasClaudeKey } from './agent/claudeInterpreter';
-import type { Interpreter } from './agent/interpretation';
-import { pendingFromClinicMessage } from './agent/outbound';
-import { ruleInterpreter } from './agent/ruleInterpreter';
-import type { ClinicData } from './data';
+import { runAgent } from './agent/agent.js';
+import { claudeInterpreter, hasClaudeKey } from './agent/claudeInterpreter.js';
+import type { Interpreter } from './agent/interpretation.js';
+import { pendingFromClinicMessage } from './agent/outbound.js';
+import { ruleInterpreter } from './agent/ruleInterpreter.js';
+import type { ClinicData } from './data.js';
 
-import type { DataStore, Message } from './types';
+import type { DataStore, Message } from './types.js';
 
 export class ConversationService {
   /** Messages are handled one at a time so two quick replies can't race on the same request. */

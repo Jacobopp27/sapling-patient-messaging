@@ -3,9 +3,9 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_NOW, runningClock } from './clock';
-import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests';
-import type { DataStore, Message, NewMessage, Request, Settings } from './types';
+import { DEFAULT_NOW, runningClock } from './clock.js';
+import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests.js';
+import type { DataStore, Message, NewMessage, Request, Settings } from './types.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS messages (

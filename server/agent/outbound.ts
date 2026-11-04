@@ -1,7 +1,7 @@
 // Clinic-authored outbound messages are read once when sent, so a later "yes" from Alex can be
 // matched to what the clinic actually offered (step 0 → step 1). Staff text is trusted input.
-import type { Patient } from '../data';
-import type { Pending } from '../types';
+import type { Patient } from '../data.js';
+import type { Pending } from '../types.js';
 
 export function pendingFromClinicMessage(body: string, patient: Patient): Pending | undefined {
   const aboutVisit = /\b(recheck|follow[- ]?up|appointment|visit|come in)\b/i.test(body);

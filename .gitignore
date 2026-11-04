@@ -19,3 +19,4 @@ video/.thumbnails/
 video/.waveform-cache/
 .vercel
 .env*
+!.env.example

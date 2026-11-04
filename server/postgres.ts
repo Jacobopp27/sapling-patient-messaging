@@ -3,8 +3,8 @@
 // agent work on it exactly as it does locally, write back what changed, commit. The lock serialises
 // requests across serverless instances, so two quick messages can't race on the same request.
 import pg from 'pg';
-import { MemoryStore, type StoreChanges } from './memoryStore';
-import type { Message, Request } from './types';
+import { MemoryStore, type StoreChanges } from './memoryStore.js';
+import type { Message, Request } from './types.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS messages (

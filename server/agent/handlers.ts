@@ -1,10 +1,10 @@
 // Intent handlers: plain code that reads data through tools, files requests, and builds the reply
 // from templates. Patient-facing safety wording lives here, not in a model prompt.
-import { addDays, federalHoliday, formatDate, formatTime, resolveWeekday, weekdayOf, WEEKDAYS, windowOf } from '../clock';
-import { BUSINESS_HOURS, type Appointment, type Patient } from '../data';
-import type { AgentTools } from '../tools';
-import type { Message, Pending, ReplySource, Request } from '../types';
-import type { Interpretation, Intent } from './interpretation';
+import { addDays, federalHoliday, formatDate, formatTime, resolveWeekday, weekdayOf, WEEKDAYS, windowOf } from '../clock.js';
+import { BUSINESS_HOURS, type Appointment, type Patient } from '../data.js';
+import type { AgentTools } from '../tools.js';
+import type { Message, Pending, ReplySource, Request } from '../types.js';
+import type { Interpretation, Intent } from './interpretation.js';
 
 export interface Turn {
   tools: AgentTools;

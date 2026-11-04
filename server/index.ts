@@ -1,8 +1,8 @@
 import path from 'node:path';
-import { createApp } from './app';
-import { DATA_DIR, loadClinicData } from './data';
-import { ConversationService } from './service';
-import { Store } from './store';
+import { createApp } from './app.js';
+import { DATA_DIR, loadClinicData } from './data.js';
+import { ConversationService } from './service.js';
+import { Store } from './store.js';
 
 try { process.loadEnvFile('.env'); } catch { /* .env is optional */ }
 

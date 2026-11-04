@@ -2,8 +2,8 @@
 // It is the default mode and the test double for the Claude interpreter (same interface).
 // Order matters: clinical and refill checks run before scheduling words so "should I take two
 // pills" is never treated as anything but a clinical question.
-import { WEEKDAYS } from '../clock';
-import type { Intent, Interpretation, Interpreter, InterpreterContext } from './interpretation';
+import { WEEKDAYS } from '../clock.js';
+import type { Intent, Interpretation, Interpreter, InterpreterContext } from './interpretation.js';
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const WEEKDAY_RE = /\b(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(day|nesday|rsday|urday)?\b/i;

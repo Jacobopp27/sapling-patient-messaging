@@ -1,11 +1,11 @@
 // The agent's capabilities. Every read of supplied data and every write to the store goes through
 // here, and each call is recorded for the "why" trace. There is deliberately no tool to book,
 // cancel, approve or edit the record: the agent cannot do what it has no tool for.
-import { inWindow, localNow, type DayWindow, type LocalNow } from './clock';
-import type { ClinicData, Patient, Slot } from './data';
-import { REQUEST_TYPES, type Details, type RequestType } from './requests';
+import { inWindow, localNow, type DayWindow, type LocalNow } from './clock.js';
+import type { ClinicData, Patient, Slot } from './data.js';
+import { REQUEST_TYPES, type Details, type RequestType } from './requests.js';
 
-import type { DataStore, Request, RequestEvent } from './types';
+import type { DataStore, Request, RequestEvent } from './types.js';
 
 export class AgentTools {
   readonly calls: string[] = [];

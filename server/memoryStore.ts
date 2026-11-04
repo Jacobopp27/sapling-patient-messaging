@@ -1,9 +1,9 @@
 // The thread held in memory for one request on the hosted demo. postgres.ts loads every row into it
 // (one patient, a short thread), the agent runs against it exactly as it does against SQLite, and
 // `changes()` says what to write back in the same transaction.
-import { DEFAULT_NOW, runningClock } from './clock';
-import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests';
-import type { DataStore, Message, NewMessage, Request, Settings } from './types';
+import { DEFAULT_NOW, runningClock } from './clock.js';
+import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests.js';
+import type { DataStore, Message, NewMessage, Request, Settings } from './types.js';
 
 export interface StoreRows { messages: Message[]; requests: Request[]; settings: Record<string, string> }
 

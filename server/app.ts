@@ -2,9 +2,9 @@
 // Routes get the service through `withService`, so the same API runs on the local SQLite file
 // (one long-lived service) and on the hosted demo (one Postgres transaction per request).
 import express, { type ErrorRequestHandler } from 'express';
-import { hasClaudeKey } from './agent/claudeInterpreter';
-import { missingFields, REQUEST_TYPES, type RequestStatus } from './requests';
-import type { ConversationService } from './service';
+import { hasClaudeKey } from './agent/claudeInterpreter.js';
+import { missingFields, REQUEST_TYPES, type RequestStatus } from './requests.js';
+import type { ConversationService } from './service.js';
 
 const STATUSES: RequestStatus[] = ['pending_staff', 'in_progress', 'completed', 'cancelled'];
 
