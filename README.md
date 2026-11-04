@@ -40,12 +40,32 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 115 tests: script steps 0–12, safety, behaviour, edge cases, interviewer-style variations
+npm test             # 121 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
 npm run typecheck
 ```
+
+## Hosted demo (Vercel + Neon Postgres)
+
+The same app can run as a public demo, for example at `sapling.jacoboposada.com`.
+- **Storage.** Vercel functions have no disk that survives, so the hosted API keeps the same three tables in Postgres (Neon) instead of the SQLite file. The agent code doesn't change:
+  - Each request takes a lock and loads the thread into memory (`server/memoryStore.ts`).
+  - The agent runs on it exactly as it does locally.
+  - What changed is written back and committed in one transaction (`server/postgres.ts`).
+  - The lock serialises messages across serverless instances.
+- **Local stays local.** `npm run dev` still uses SQLite and needs no account, as the spec requires.
+- **Entry point.** `api/index.ts` serves the API; `vercel.json` builds the UI into `web/dist` and routes `/api/*` to the function.
+- **Safety on a public URL:**
+  - Claude mode stays off on Vercel unless `ALLOW_CLAUDE_MODE=true` is set, so a visitor can't spend the key's credits.
+  - The UI says that everyone shares one conversation.
+
+To deploy:
+1. Import the GitHub repo in Vercel (Add New → Project). Keep the settings from `vercel.json`.
+2. Storage → Neon → create a database and connect it to the project. This sets `DATABASE_URL`.
+3. Optional: add `ANTHROPIC_API_KEY`, plus `ALLOW_CLAUDE_MODE=true` if visitors may use Claude mode. Set a spend limit in the Anthropic console first.
+4. Settings → Domains → add `sapling.jacoboposada.com`. If the domain's DNS isn't on Vercel, add a CNAME record `sapling` → `cname.vercel-dns.com` at your DNS provider.
 
 ## How it works
 
@@ -71,7 +91,8 @@ Alex's message ─▶ saved ─▶ ① emergency guard (code) ──▶ exact 91
 | Path | What it is |
 |---|---|
 | `data/` | The three supplied files, verbatim and read-only |
-| `server/store.ts` | SQLite: `messages`, `requests`, `settings` |
+| `server/store.ts` | SQLite: `messages`, `requests`, `settings` (local demo) |
+| `server/memoryStore.ts`, `server/postgres.ts`, `api/index.ts` | The hosted demo: the same rows in Postgres, one locked transaction per request |
 | `server/requests.ts` | Request catalog: required fields per type and the dedupe key. **Add a request type here.** |
 | `server/tools.ts` | The agent's only capabilities (read data, list or upsert requests). Every call is traced |
 | `server/agent/guards.ts` | Emergency text and detector, plus the reply guard |
@@ -121,6 +142,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
   - One patient, one thread, and no identity check (Phase 1 treats every inbound message as Alex).
   - The agent assumes one open appointment request and one booked appointment at a time.
   - Clinical questions aren't merged; each one is its own request.
+- **The hosted demo has one shared thread.** Everyone who opens the public URL talks to the same Alex, and Reset clears it for everyone. Per-visitor threads would need a thread id on every row.
 - **Staff status changes aren't communicated back to Alex.** The agent reports them only when asked, and can't say what was booked: the record's appointments don't change when staff complete a request.
 
 ## Next two priorities

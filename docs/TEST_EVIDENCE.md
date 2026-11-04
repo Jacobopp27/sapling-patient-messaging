@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **115/115 passing** across 5 files. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **121/121 passing** across 6 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
 
@@ -60,4 +60,10 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - Record and FAQ questions: "whens my next appt", "are you open on saturday?", "do you accept blue shield?" (it answers with the plan on file), paying by card, "who is my doctor?", "what medications am I on?", two refill phrasings.
   - What it can't understand fails safe: Spanish, small talk and "a real person" get an offer to pass the message to staff, and nothing is filed.
   - None of these replies claims a booking, promises a time or gives dosing advice.
+- **`tests/hosted.test.ts`** (6 tests). The hosted (Vercel + Neon) path:
+  - The whole script played with a fresh in-memory store per message gives exactly the same messages and requests as the SQLite store.
+  - The store reports only what changed, and a Reset as a reset.
+  - The HTTP API answers, and rejects bad input with 400 and an unknown request with 404.
+  - On real Postgres: the script runs one transaction per message, step 12 is right after a restart (a new connection pool), and there's still exactly one of each request.
+  - On real Postgres: two messages sent at the same moment from two instances are serialised, with no lost or duplicate rows.
 
