@@ -166,6 +166,11 @@ export function App() {
         </div>
       </header>
 
+      {state.sharedDemo && (
+        <div className="shared-note">
+          Shared public demo: everyone who opens this page sees the same conversation with the synthetic patient Alex Morgan. Press Reset to start over.
+        </div>
+      )}
       {error && <div className="error">{error}</div>}
 
       <main className="layout">

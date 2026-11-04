@@ -6,6 +6,8 @@ export interface AppState {
   settings: Settings;
   clock: string;
   claudeAvailable: boolean;
+  /** The hosted demo: every visitor shares this one thread. */
+  sharedDemo: boolean;
   patient: { id: string; name: string; phone: string };
   messages: Message[];
   requests: QueueRequest[];
