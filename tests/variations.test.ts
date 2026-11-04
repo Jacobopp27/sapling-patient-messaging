@@ -64,7 +64,7 @@ describe('scheduling paraphrases', () => {
     const { requests, body } = await send('request', 'can we make it 4pm instead');
     expect(requests).toHaveLength(1);
     expect(requests[0].details).toMatchObject({ date: '2026-11-12', preferred_time: '16:00' });
-    expect(body).toMatch(/around 4:00 p\.m\./);
+    expect(body).toMatch(/at 4:00 p\.m\., with Dr\. Priya Lee\. That's one of Dr\. Lee's open times\./);
   });
 
   it('"never mind, I don\'t need the recheck anymore" is noted as a withdrawal', async () => {
@@ -129,7 +129,7 @@ describe('the clinic offer is remembered across a message the agent did not unde
   it('your exact thread: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works"', async () => {
     const svc = await thread('slots');
     const first = await svc.receivePatientMessage('thursdar 1:30 works');
-    expect(opening(first.reply.body)).toMatch(/requested a BP recheck .* Thursday, Nov 12, around 1:30 p\.m\./);
+    expect(opening(first.reply.body)).toMatch(/requested a BP recheck .* Thursday, Nov 12, at 1:30 p\.m\. That's one of Dr\. Lee's open times\./);
     await svc.receivePatientMessage('book thursday');
     const last = await svc.receivePatientMessage('Tuesday afternoon works');
     const requests = svc.store.listRequests('pt_001');
@@ -171,3 +171,55 @@ describe('weekday typos', () => {
     expect(interpretWithRules(ctx(text)).weekday).toBeUndefined();
   });
 });
+
+describe('a day or time Alex rules out', () => {
+  const ctx = (text: string) => ({ text, thread: [], today: '2026-11-04', medications: ['Lisinopril'], appointmentTypes: ['Annual physical'] });
+  it.each([
+    ["I can't at 3:30pm", { avoid_time: '15:30' }],
+    ["2pm doesn't work", { avoid_time: '14:00' }],
+    ["I can't do Tuesday", { avoid_weekday: 'tuesday' }],
+    ["I'm busy Thursday", { avoid_weekday: 'thursday' }],
+  ])('"%s" is read as ruled out, not as a preference', (text, fields) => {
+    const i = interpretWithRules(ctx(text));
+    expect(i).toMatchObject({ intent: 'appointment_preference', ...fields });
+    expect(i.time).toBeUndefined();
+    expect(i.weekday).toBeUndefined();
+  });
+
+  async function tuesdayAt2() {
+    const svc = await thread('slots');
+    await svc.receivePatientMessage('Tuesday afternoon works');
+    const { reply } = await svc.receivePatientMessage('2pm works');
+    expect(opening(reply.body)).toMatch(/Tuesday, Nov 10, at 2:00 p\.m\., with Dr\. Priya Lee\. That's one of Dr\. Lee's open times\./);
+    expect(svc.store.listRequests('pt_001')[0].details).toMatchObject({ preferred_time: '14:00', matching_open_slots: ['14:00'] });
+    return svc;
+  }
+
+  it('your exact thread: "2pm works", then "I can\'t at 3:30pm" keeps 2:00 and records 3:30 as ruled out', async () => {
+    const svc = await tuesdayAt2();
+    const { reply } = await svc.receivePatientMessage("I can't at 3:30pm");
+    expect(opening(reply.body)).toMatch(/^Noted: 3:30 p\.m\. doesn't work for you\. Your BP recheck request stays at Tuesday, Nov 10 at 2:00 p\.m\./);
+    expect(svc.store.listRequests('pt_001')[0].details).toMatchObject({ preferred_time: '14:00', matching_open_slots: ['14:00'], avoid_times: ['15:30'] });
+  });
+
+  it('ruling out the chosen time leaves the other open time', async () => {
+    const svc = await tuesdayAt2();
+    const { reply } = await svc.receivePatientMessage("2pm doesn't work");
+    expect(opening(reply.body)).toMatch(/The open time left then is 3:30 p\.m\./);
+    const d = svc.store.listRequests('pt_001')[0].details;
+    expect(d.preferred_time).toBeUndefined();
+    expect(d).toMatchObject({ matching_open_slots: ['15:30'], avoid_times: ['14:00'] });
+  });
+
+  it('ruling out the requested day takes it off the request and asks for another', async () => {
+    const svc = await thread('slots');
+    await svc.receivePatientMessage('Tuesday afternoon works');
+    const { reply } = await svc.receivePatientMessage("I can't do Tuesday");
+    expect(opening(reply.body)).toMatch(/Tuesday doesn't work, so I've taken it off your BP recheck request\. What day and time work best for you\? Dr\. Lee currently has openings on Thursday, Nov 12/);
+    expect(svc.store.listRequests('pt_001')[0].details.date).toBeUndefined();
+    await svc.receivePatientMessage('Thursday works');
+    expect(svc.store.listRequests('pt_001')).toHaveLength(1);
+    expect(svc.store.listRequests('pt_001')[0].details).toMatchObject({ date: '2026-11-12', avoid_days: ['tuesday'] });
+  });
+});
+

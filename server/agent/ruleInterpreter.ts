@@ -89,12 +89,16 @@ export function changeTarget(text: string, ctx: InterpreterContext): 'booked' | 
   return undefined;
 }
 
+/** "I can't at 3:30", "Tuesday doesn't work", "I'm busy Thursday": a day or time ruled out. */
+const RULES_OUT = /\b(can'?t|cannot|can not|won'?t|wont|unable|busy|(doesn'?t|does not|won'?t|wouldn'?t) work|not (good|available|possible))\b/i;
+
 function schedulingFields(t: string, today: string): Partial<Interpretation> {
   const weekday = extractWeekday(t);
   const date = extractDate(t, today);
   const time = extractTime(t);
   const window = extractWindow(t);
   const tomorrow = /\btomorrow\b/i.test(t);
+  if (RULES_OUT.test(t) && (time || weekday)) return time ? { avoid_time: time } : { avoid_weekday: weekday };
   return {
     ...(weekday ? { weekday } : {}),
     ...(date ? { date } : {}),

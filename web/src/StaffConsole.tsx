@@ -148,7 +148,7 @@ function RequestCard({ r, busy, onShowSources, onStatus, onResolve }: {
           <div key={k}><dt>{k.replace(/_/g, ' ')}</dt><dd>{Array.isArray(v) ? v.join(', ') : String(v)}</dd></div>
         ))}
       </dl>
-      {resolving && <ResolveForm r={r} busy={busy} onCancel={() => setResolving(false)} onResolve={(body) => { setResolving(false); onResolve(r.id, body); }} />}
+      {resolving && <ResolveForm key={r.updatedAt} r={r} busy={busy} onCancel={() => setResolving(false)} onResolve={(body) => { setResolving(false); onResolve(r.id, body); }} />}
       <footer className="row">
         {!res && !resolving && <button className="small-btn" onClick={() => setResolving(true)}>Resolve…</button>}
         <button className="link" onClick={() => onShowSources(r.sourceMessageIds)}>

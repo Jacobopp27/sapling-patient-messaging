@@ -29,6 +29,8 @@ const SCHEMA = {
     medication: { type: 'string' },
     readings: { type: 'array', items: { type: 'string' } },
     period: { type: 'string' },
+    avoid_time: { type: 'string', description: 'HH:MM 24h, a time the patient says does NOT work' },
+    avoid_weekday: { type: 'string', enum: WEEKDAYS },
     action: { type: 'string', enum: ['reschedule', 'cancel'] },
     target: { type: 'string', enum: ['booked', 'request'] },
     also: { type: 'array', items: { type: 'string', enum: [...INTENTS] } },
@@ -54,6 +56,7 @@ Intents:
 - balance: asks about what they owe. billing_issue: disputes a charge, asks for a refund or payment plan.
 - list_requests: asks what they have asked for / what is pending.
 - thanks, unknown.
+If the patient rules a day or time out ("I can't at 3:30", "Tuesday doesn't work"), put it in avoid_time or avoid_weekday, never in time or weekday.
 If the message asks for more than one thing, put the main one in intent and the others in also. If any part is a
 clinical_question, intent must be clinical_question.
 Set possible_emergency true if the message could describe a medical emergency (chest pain, trouble breathing, stroke signs, fainting, severe bleeding, self-harm), even if phrased casually.

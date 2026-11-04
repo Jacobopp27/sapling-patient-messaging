@@ -92,10 +92,13 @@ function mentionedAppointment(text: string, booked: Appointment[]): Appointment 
 
 // --- appointments -----------------------------------------------------------
 
-function openings(turn: Turn, provider: string): string {
+function openings(turn: Turn, provider: string, skip: { weekday?: string } = {}): string {
   const { tools } = turn;
   const byDate = new Map<string, string[]>();
-  for (const s of tools.openSlots({ provider })) byDate.set(s.date, [...(byDate.get(s.date) ?? []), s.start]);
+  for (const s of tools.openSlots({ provider })) {
+    if (skip.weekday && WEEKDAYS[weekdayOf(s.date)] === skip.weekday) continue;
+    byDate.set(s.date, [...(byDate.get(s.date) ?? []), s.start]);
+  }
   const today = tools.now().date;
   const options = [...byDate].map(([date, times]) => `${formatDate(date, today)} (${slotList(times)})`);
   return options.length ? ` ${shortName(provider)} currently has openings on ${options.join(' and ')}.` : '';
@@ -130,11 +133,15 @@ function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
   const priorSources = offer?.kind === 'appointment_time' ? offer.sourceMessageIds ?? []
     : offer && offerMessageId ? [offerMessageId] : [];
 
+  if (i.avoid_time || i.avoid_weekday) {
+    return ruleOut(turn, i, { existing, reason, provider, context, sources: [...priorSources, inbound.id] });
+  }
+
   const time = i.time ?? fromReasonPrompt?.time;
   let date = i.date ?? (i.topic === 'tomorrow' ? addDays(today, 1) : undefined);
   // Answering the clinic's offer, "Thursday" means the Thursday with openings (Nov 12, the one we
   // list), not tomorrow, which has none. The date is said back, so Alex can correct it.
-  if (!date && i.weekday && !existing && offer) {
+  if (!date && i.weekday && ((!existing && offer) || (existing && !existing.details.date))) {
     date = tools.openSlots({ provider }).find((s) => weekdayOf(s.date) === WEEKDAYS.indexOf(i.weekday!))?.date;
   }
   if (!date && i.weekday) date = resolveWeekday(today, WEEKDAYS.indexOf(i.weekday), existing?.details.date as string | undefined);
@@ -161,22 +168,92 @@ function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
   }
 
   const finalWindow = (window ?? 'any') as 'morning' | 'afternoon' | 'any';
-  const slots = tools.openSlots({ date, window: finalWindow, provider }).map((s) => s.start);
+  // Times Alex ruled out on this day stay ruled out.
+  const avoidTimes = existing && existing.details.date === date ? (existing.details.avoid_times as string[] | undefined) ?? [] : [];
+  const slots = tools.openSlots({ date, window: finalWindow, provider }).map((s) => s.start).filter((t) => !avoidTimes.includes(t));
+  // Alex picked one of the open times: that's the one, not the whole list.
+  const picked = time !== undefined && slots.includes(time);
   tools.upsertRequest('appointment_request', {
     reason, provider, date, window: finalWindow,
     preferred_time: time,
-    matching_open_slots: slots,
+    matching_open_slots: picked ? [time] : slots,
+    avoid_times: avoidTimes.length ? avoidTimes : undefined,
     context,
   }, [...priorSources, inbound.id]);
 
-  const when = `${formatDate(date, today)}, ${time ? `around ${formatTime(time)}` : windowText(finalWindow)}`;
-  const slotText = slots.length
-    ? ` ${endSentence(`Open times then: ${slotList(slots)}`)}`
-    : ` I don't see an open time with ${provider} then, so staff will review options with your preference in mind.`;
+  const when = `${formatDate(date, today)}, ${time ? `${picked ? 'at' : 'around'} ${formatTime(time)}` : windowText(finalWindow)}`;
+  const slotText = picked
+    ? ` That's one of ${shortName(provider)}'s open times.`
+    : slots.length
+      ? ` ${endSentence(`Open times then: ${slotList(slots)}`)}`
+      : ` I don't see an open time with ${provider} then, so staff will review options with your preference in mind.`;
   const body = existing
     ? `Updated: your ${reason} request is now for ${when}, with ${provider}.${slotText} It's still one request, and it's still pending staff review, not booked. ${NOT_MONITORED}`
     : `Got it. I've requested a ${reason} with ${provider} for ${endSentence(when)}${slotText} This is a request, not a booking: it's pending staff review. ${NOT_MONITORED}`;
   return { body, source: 'staff_handoff' };
+}
+
+const dayName = (weekday: string) => weekday.replace(/^./, (c) => c.toUpperCase());
+
+/**
+ * "I can't at 3:30" / "Tuesday doesn't work": Alex rules something out. It's recorded for staff and
+ * never turned into a preference (before, "can't at 3:30" moved the request to 3:30).
+ */
+function ruleOut(turn: Turn, i: Interpretation, c: {
+  existing?: Request; reason?: string; provider: string; context?: string; sources: number[];
+}): HandlerResult {
+  const { tools } = turn;
+  const today = tools.now().date;
+  const { existing, reason, provider, context, sources } = c;
+  const askAgain = (lead: string, skip: { weekday?: string } = {}): HandlerResult => ({
+    body: `${lead} What day and time work best for you?${openings(turn, provider, skip)}`,
+    source: 'clarifying',
+    pending: reason ? { kind: 'appointment_time', reason, provider, context, sourceMessageIds: sources } : undefined,
+  });
+
+  if (i.avoid_weekday) {
+    const day = dayName(i.avoid_weekday);
+    if (!existing) return askAgain(`Okay, not ${day}.`, { weekday: i.avoid_weekday });
+    const d = existing.details;
+    const avoidDays = [...new Set([...((d.avoid_days as string[] | undefined) ?? []), i.avoid_weekday])];
+    if (d.date && WEEKDAYS[weekdayOf(String(d.date))] === i.avoid_weekday) {
+      // Take the day off the request, so staff see "missing date" instead of a day Alex can't do.
+      tools.upsertRequest('appointment_request', {
+        reason: d.reason, avoid_days: avoidDays, date: undefined, preferred_time: undefined, matching_open_slots: undefined,
+      }, sources);
+      return askAgain(`Okay, ${day} doesn't work, so I've taken it off your ${d.reason} request.`, { weekday: i.avoid_weekday });
+    }
+    tools.upsertRequest('appointment_request', { reason: d.reason, avoid_days: avoidDays }, sources);
+    return {
+      body: `Noted: ${day} doesn't work for you. Your ${d.reason} request is still for ${formatDate(String(d.date), today)}, ${windowText(d.window)}. It's still pending staff review, not booked. ${NOT_MONITORED}`,
+      source: 'staff_handoff',
+    };
+  }
+
+  const t = i.avoid_time!;
+  if (!existing) return askAgain(`Okay, not ${formatTime(t)}.`);
+  const d = existing.details;
+  const date = String(d.date);
+  const avoidTimes = [...new Set([...((d.avoid_times as string[] | undefined) ?? []), t])];
+  const preferred = d.preferred_time === t ? undefined : (d.preferred_time as string | undefined);
+  const slots = tools.openSlots({ date, window: d.window as 'morning' | 'afternoon' | 'any', provider: String(d.provider) })
+    .map((s) => s.start).filter((s) => !avoidTimes.includes(s));
+  tools.upsertRequest('appointment_request', {
+    reason: d.reason,
+    preferred_time: preferred,
+    avoid_times: avoidTimes,
+    matching_open_slots: preferred && slots.includes(preferred) ? [preferred] : slots,
+  }, sources);
+  const day = formatDate(date, today);
+  const rest = preferred
+    ? `Your ${d.reason} request stays at ${day} at ${endSentence(formatTime(preferred))}`
+    : slots.length
+      ? `Your ${d.reason} request is for ${day}, ${windowText(d.window)}. ${endSentence(`The open time${slots.length > 1 ? 's' : ''} left then ${slots.length > 1 ? 'are' : 'is'} ${slotList(slots)}`)}`
+      : `I don't see another open time with ${d.provider} then, so staff will review options with that in mind.`;
+  return {
+    body: `Noted: ${formatTime(t)} doesn't work for you. ${rest} It's still one request, pending staff review, not booked. ${NOT_MONITORED}`,
+    source: 'staff_handoff',
+  };
 }
 
 function appointmentStatus(turn: Turn): HandlerResult {

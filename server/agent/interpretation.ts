@@ -41,6 +41,9 @@ export interface Interpretation {
   readings?: string[];
   /** Time period the readings cover, e.g. "all week". */
   period?: string;
+  /** A time ("I can't at 3:30") or day ("Tuesday doesn't work") Alex rules out. */
+  avoid_time?: string;
+  avoid_weekday?: string;
   /** For change_appointment. */
   action?: 'reschedule' | 'cancel';
   /** For change_appointment: the booked appointment on file, or the pending request. Unset if unclear. */

@@ -48,8 +48,9 @@ describe('appointment requests', () => {
     const { reply } = await svc.receivePatientMessage('Thursday at 4pm please');
     const [r] = svc.store.listRequests('pt_001');
     // The openings just listed were Tue Nov 10 and Thu Nov 12, so "Thursday" is Nov 12, not tomorrow.
-    expect(r.details).toMatchObject({ date: '2026-11-12', window: 'afternoon', preferred_time: '16:00' });
-    expect(reply.body).toMatch(/Thursday, Nov 12, around 4:00 p\.m\. Open times then: 1:30 p\.m\. or 4:00 p\.m\./);
+    expect(r.details).toMatchObject({ date: '2026-11-12', window: 'afternoon', preferred_time: '16:00', matching_open_slots: ['16:00'] });
+    // An open time was picked: say it back as the one, not the whole list.
+    expect(reply.body).toMatch(/requested a BP recheck with Dr\. Priya Lee for Thursday, Nov 12, at 4:00 p\.m\. That's one of Dr\. Lee's open times\./);
   });
 
   it('several changes keep one request, and the latest preference wins', async () => {
