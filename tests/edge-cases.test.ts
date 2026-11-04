@@ -97,7 +97,7 @@ describe('after staff close a request', () => {
     expect(status.reply.body).not.toMatch(CLAIMS_DONE);
 
     const list = await svc.receivePatientMessage('what have I asked you for so far?');
-    expect(list.reply.body).toMatch(/Already handled by staff:\n- A BP recheck .* \(marked completed\)/);
+    expect(list.reply.body).toMatch(/Already handled by staff:\n- Your BP recheck with Dr\. Priya Lee: marked completed/);
     expect(svc.store.listRequests(pid)).toHaveLength(1);
   });
 

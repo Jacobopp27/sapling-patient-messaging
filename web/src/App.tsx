@@ -229,6 +229,7 @@ export function App() {
           onSend={(body) => run(() => api.send('clinic', body))}
           onShowSources={showSources}
           onStatus={(id, s) => run(() => api.setStatus(id, s))}
+          onResolve={(id, body) => run(() => api.resolve(id, body))}
         />
       </main>
     </div>

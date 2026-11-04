@@ -55,6 +55,19 @@ export interface Message {
   createdAt: string;
 }
 
+/**
+ * What staff decided when they closed a request. Only staff set it (POST /api/requests/:id/resolve);
+ * the agent reads it as the source of truth and never sets it.
+ */
+export interface Resolution {
+  outcome: 'booked' | 'not_booked' | 'approved' | 'denied' | 'done' | 'not_done' | 'answered';
+  /** The appointment staff booked (or moved a booked one to). */
+  appointment?: { date: string; time: string; provider: string };
+  /** Staff's internal note. The agent never repeats it to Alex. */
+  note?: string;
+  resolvedAt: string;
+}
+
 export interface Request {
   id: number;
   patientId: string;
@@ -64,7 +77,10 @@ export interface Request {
   sourceMessageIds: number[];
   createdAt: string;
   updatedAt: string;
+  resolution: Resolution | null;
 }
+
+export type RequestPatch = { details?: Details; sourceMessageIds?: number[]; status?: RequestStatus; resolution?: Resolution };
 
 export interface Settings { now: string; agentMode: 'local' | 'claude' }
 
@@ -87,7 +103,7 @@ export interface DataStore {
   listMessages(patientId: string): Message[];
   lastOutbound(patientId: string): Message | undefined;
   createRequest(r: { patientId: string; type: RequestType; details: Details; sourceMessageIds: number[] }): Request;
-  updateRequest(id: number, patch: { details?: Details; sourceMessageIds?: number[]; status?: RequestStatus }): Request;
+  updateRequest(id: number, patch: RequestPatch): Request;
   getRequest(id: number): Request | undefined;
   listRequests(patientId: string): Request[];
   openRequests(patientId: string, type?: RequestType): Request[];

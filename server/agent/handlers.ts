@@ -51,18 +51,43 @@ function closedDayReply(turn: Turn, date: string, why: string, provider: string,
   return `The clinic is closed on ${formatDate(date, today)} (${why}), so I can't request that day.${still ? ` ${still}` : ''} What other day works for you?${openings(turn, provider)}`;
 }
 
-/** Booked appointments on file from today on, soonest first. */
+/**
+ * Booked appointments from today on, soonest first: the record's (as staff moved or cancelled them)
+ * plus the visits staff booked from Alex's requests. What staff recorded is the source of truth.
+ */
 function bookedAppointments(tools: AgentTools): Appointment[] {
   const today = tools.now().date;
-  return tools.patient('upcoming_appointments').upcoming_appointments
-    .filter((a) => a.status === 'booked' && a.date >= today)
+  const resolved = tools.requests().filter((r) => r.resolution);
+  const changes = resolved.filter((r) => r.type === 'appointment_change' && r.resolution!.outcome === 'done');
+  const fromRecord = tools.patient('upcoming_appointments').upcoming_appointments.filter((a) => a.status === 'booked');
+  const fromStaff = resolved
+    .filter((r) => r.type === 'appointment_request' && r.resolution!.outcome === 'booked' && r.resolution!.appointment)
+    .map((r): Appointment => ({ ...r.resolution!.appointment!, type: String(r.details.reason), status: 'booked' }));
+  return [...fromRecord, ...fromStaff]
+    .flatMap((a) => {
+      const change = changes.filter((c) => c.details.appointment === appointmentKey(a)).at(-1);
+      if (!change) return [a];
+      if (change.details.action === 'cancel' || !change.resolution!.appointment) return [];
+      const moved = change.resolution!.appointment;
+      return [{ ...a, date: moved.date, time: moved.time, provider: moved.provider }];
+    })
+    .filter((a) => a.date >= today)
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 }
 
 const appointmentKey = (a: Appointment) => `${a.type} ${a.date} ${a.time}`;
 
+/** "Annual physical" → "annual physical", but "BP recheck" stays. */
+const lowerFirst = (s: string) => (/^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
+
 function describeBooked(a: Appointment, today: string): string {
-  return `${a.type.toLowerCase()} with ${a.provider} on ${formatDate(a.date, today)} at ${formatTime(a.time)}`;
+  return `${lowerFirst(a.type)} with ${a.provider} on ${formatDate(a.date, today)} at ${formatTime(a.time)}`;
+}
+
+/** The booked appointment Alex names ("my physical", "the recheck"), if any. */
+function mentionedAppointment(text: string, booked: Appointment[]): Appointment | undefined {
+  const lower = text.toLowerCase();
+  return booked.find((a) => a.type.toLowerCase().split(/\W+/).some((w) => w.length > 3 && lower.includes(w)));
 }
 
 // --- appointments -----------------------------------------------------------
@@ -161,6 +186,22 @@ function appointmentStatus(turn: Turn): HandlerResult {
   if (!open) {
     // Staff may have closed it from the queue. Report that, never "you have no request".
     const last = tools.requests('appointment_request').at(-1);
+    const res = last?.resolution;
+    if (last && res?.outcome === 'booked' && res.appointment) {
+      const a = res.appointment;
+      return {
+        body: `Yes. ${endSentence(`Clinic staff booked your ${last.details.reason} with ${a.provider} for ${formatDate(a.date, today)} at ${formatTime(a.time)}`)} If you need to change it, reply here.`,
+        source: 'requests',
+      };
+    }
+    if (last && res?.outcome === 'not_booked') {
+      const d = last.details;
+      return {
+        body: `Clinic staff weren't able to book your ${d.reason} for ${formatDate(String(d.date), today)}, ${windowText(d.window)}. Would you like me to request it again for another day?`,
+        source: 'requests',
+        pending: { kind: 'appointment_offer', reason: String(d.reason), provider: String(d.provider), context: d.context as string | undefined },
+      };
+    }
     if (last?.status === 'completed') {
       const phone = tools.faq('phone')?.split(',')[0];
       return {
@@ -194,6 +235,7 @@ function nextAppointment(turn: Turn): HandlerResult {
   if (booked[0]) {
     const a = booked[0];
     parts.push(endSentence(`Your next booked appointment is your ${describeBooked(a, today)}`));
+    if (booked[1]) parts.push(endSentence(`After that, your ${describeBooked(booked[1], today)}`));
     const change = tools.openRequests('appointment_change').find((r) => r.details.appointment === appointmentKey(a));
     if (change) parts.push(`You've asked to ${change.details.action === 'cancel' ? 'cancel' : 'move'} it, and that's pending staff review, so it stays as it is for now.`);
   } else {
@@ -212,9 +254,13 @@ function changeAppointment(turn: Turn, i: Interpretation): HandlerResult {
   const { tools, inbound } = turn;
   const today = tools.now().date;
   const action = i.action ?? 'reschedule';
-  const booked = bookedAppointments(tools)[0];
+  const bookedList = bookedAppointments(tools);
+  const mentioned = mentionedAppointment(inbound.body, bookedList);
+  const booked = mentioned ?? bookedList[0];
   const request = tools.openRequests('appointment_request').at(-1);
-  const target = i.target ?? (booked && !request ? 'booked' : request && !booked ? 'request' : undefined);
+  let target = i.target ?? (booked && !request ? 'booked' : request && !booked ? 'request' : undefined);
+  // "Move the recheck" after staff booked it: it's a booked appointment now, not a request.
+  if (target === 'request' && !request && mentioned) target = 'booked';
 
   if (!booked && !request) {
     return { body: "I don't see a booked appointment or an appointment request for you. If you'd like a visit, tell me what it's for and what day works.", source: 'record' };
@@ -353,6 +399,22 @@ function refill(turn: Turn, i: Interpretation): HandlerResult {
     return { body: `Which medication would you like a refill for? I have ${p.medications.map((m) => m.name).join(', ')} on file.`, source: 'clarifying' };
   }
   const existing = tools.openRequests('refill').find((r) => r.details.medication === med.name);
+  // "Has my refill been approved?" is a status question: answer it, don't file or extend a request.
+  const asksStatus = /\b(approved|ready|status|yet|update|did|has|was|go(ne)? through|went through)\b/i.test(inbound.body);
+  if (existing && asksStatus) {
+    return { body: `Not yet. Your refill request for ${med.name} ${med.dose} is pending staff review, not approved yet. ${NOT_MONITORED}`, source: 'requests' };
+  }
+  const decided = tools.requests('refill').filter((r) => r.details.medication === med.name && r.resolution).at(-1);
+  if (!existing && decided && asksStatus) {
+    if (decided.resolution!.outcome === 'approved') {
+      return { body: `Yes. Clinic staff approved your refill of ${med.name} ${med.dose}. If you need another one later, just ask for a new refill.`, source: 'requests' };
+    }
+    const phone = tools.faq('phone')?.split(',')[0];
+    return {
+      body: `Clinic staff couldn't approve your refill of ${med.name} ${med.dose} by text.${phone ? ` You can call the clinic at ${phone} during business hours.` : ''}`,
+      source: 'requests',
+    };
+  }
   tools.upsertRequest('refill', {
     medication: med.name, dose: med.dose, frequency: med.frequency,
     refills_remaining: med.refills_remaining,
@@ -439,9 +501,22 @@ function listRequests(turn: Turn): HandlerResult {
       default: return `Your question: "${d.question}"`;
     }
   };
-  const status = (r: Request) => (r.status === 'completed' ? 'marked completed' : 'closed');
+  const outcome = (r: Request): string => {
+    const res = r.resolution;
+    if (!res) return r.status === 'completed' ? 'marked completed' : 'closed';
+    switch (res.outcome) {
+      case 'booked': return `booked for ${formatDate(res.appointment!.date, today)} at ${formatTime(res.appointment!.time)}`;
+      case 'not_booked': return "staff couldn't book it";
+      case 'approved': return 'approved';
+      case 'denied': return 'not approved';
+      case 'done': return 'done';
+      case 'not_done': return "staff couldn't make the change";
+      case 'answered': return 'the clinic replied';
+    }
+  };
+  const closedTitle = (r: Request) => (r.type === 'appointment_request' ? `Your ${r.details.reason} with ${r.details.provider}` : line(r));
   const closedText = closed.length
-    ? `Already handled by staff:\n${closed.map((r) => `- ${line(r)} (${status(r)})`).join('\n')}\n`
+    ? `Already handled by staff:\n${closed.map((r) => `- ${closedTitle(r)}: ${outcome(r)}`).join('\n')}\n`
     : '';
   if (!open.length) {
     return { body: `You don't have any requests waiting for staff right now.${closedText ? `\n${closedText.trimEnd()}` : ''}`, source: 'requests' };

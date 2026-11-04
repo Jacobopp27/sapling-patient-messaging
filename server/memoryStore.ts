@@ -2,8 +2,8 @@
 // (one patient, a short thread), the agent runs against it exactly as it does against SQLite, and
 // `changes()` says what to write back in the same transaction.
 import { DEFAULT_NOW, runningClock } from './clock.js';
-import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests.js';
-import type { DataStore, Message, NewMessage, Request, Settings } from './types.js';
+import { OPEN_STATUSES, type Details, type RequestType } from './requests.js';
+import type { DataStore, Message, NewMessage, Request, RequestPatch, Settings } from './types.js';
 
 export interface StoreRows { messages: Message[]; requests: Request[]; settings: Record<string, string> }
 
@@ -117,18 +117,20 @@ export class MemoryStore implements DataStore {
       sourceMessageIds: [...r.sourceMessageIds],
       createdAt: now,
       updatedAt: now,
+      resolution: null,
     };
     this.requests.push(request);
     this.touched.created.add(request.id);
     return copy(request);
   }
 
-  updateRequest(id: number, patch: { details?: Details; sourceMessageIds?: number[]; status?: RequestStatus }): Request {
+  updateRequest(id: number, patch: RequestPatch): Request {
     const current = this.requests.find((x) => x.id === id);
     if (!current) throw new Error(`request ${id} not found`);
     if (patch.details) current.details = copy(patch.details);
     if (patch.sourceMessageIds) current.sourceMessageIds = [...patch.sourceMessageIds];
     if (patch.status) current.status = patch.status;
+    if (patch.resolution) current.resolution = copy(patch.resolution);
     current.updatedAt = this.now();
     this.touched.updated.add(id);
     return copy(current);

@@ -4,6 +4,7 @@
 import express, { type ErrorRequestHandler } from 'express';
 import { hasClaudeKey } from './agent/claudeInterpreter.js';
 import { missingFields, REQUEST_TYPES, type RequestStatus } from './requests.js';
+import { resolveRequest, ResolveError } from './resolutions.js';
 import type { ConversationService } from './service.js';
 
 const STATUSES: RequestStatus[] = ['pending_staff', 'in_progress', 'completed', 'cancelled'];
@@ -75,6 +76,21 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
     res.json(await withService(async (service) => {
       if (!service.store.getRequest(id)) throw new HttpError(404, 'not found');
       service.store.updateRequest(id, { status });
+      return state(service);
+    }));
+  });
+
+  // Optional staff action: close a request with what actually happened (booked for Thu 1:30,
+  // refill approved, ...) and optionally text Alex. The agent then reports that outcome truthfully.
+  app.post('/api/requests/:id/resolve', async (req, res) => {
+    const id = Number(req.params.id);
+    res.json(await withService(async (service) => {
+      try {
+        resolveRequest(service, id, req.body ?? {});
+      } catch (err) {
+        if (err instanceof ResolveError) throw new HttpError(err.status, err.message);
+        throw err;
+      }
       return state(service);
     }));
   });

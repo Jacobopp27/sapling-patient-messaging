@@ -9,6 +9,7 @@ import { createApp } from '../server/app';
 import { loadClinicData } from '../server/data';
 import { MemoryStore, type StoreRows } from '../server/memoryStore';
 import { postgresStore } from '../server/postgres';
+import { resolveRequest } from '../server/resolutions';
 import { SCRIPT } from '../server/script';
 import { ConversationService } from '../server/service';
 import { openService, tempDbFile } from './helpers';
@@ -121,6 +122,23 @@ describe.skipIf(!PG)('Postgres (TEST_DATABASE_URL)', () => {
 
     const types = await db.run(async (store) => store.listRequests(pid).map((r) => r.type));
     expect(types).toEqual(['appointment_request', 'refill', 'clinical_question', 'emergency']);
+    await db.close();
+  });
+
+  it('keeps what staff resolved (booked for Thu 1:30) across a restart', async () => {
+    let db = postgresStore(PG!);
+    await db.run(async (store) => {
+      store.reset();
+      const svc = service(store);
+      svc.sendClinicMessage(SCRIPT[0].body);
+      await svc.receivePatientMessage('yes');
+      await svc.receivePatientMessage('Thursday afternoon works');
+      resolveRequest(svc, 1, { outcome: 'booked', date: '2026-11-12', time: '13:30', message: 'Booked for Thu 1:30.' });
+    });
+    await db.close();
+    db = postgresStore(PG!);
+    const reply = await db.run(async (store) => (await service(store).receivePatientMessage('is it booked yet?')).reply);
+    expect(reply.body).toMatch(/Clinic staff booked your BP recheck .* Thursday, Nov 12 at 1:30 p\.m\./);
     await db.close();
   });
 

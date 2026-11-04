@@ -1,3 +1,4 @@
+import type { ResolveInput } from '../../server/resolutions';
 import type { Message, Request, Settings } from '../../server/types';
 
 export type QueueRequest = Request & { label: string; missing: string[] };
@@ -28,5 +29,6 @@ export const api = {
   send: (author: 'clinic' | 'patient', body: string, replyTo?: number) => call('POST', '/api/messages', { author, body, replyTo }),
   settings: (patch: Partial<Settings>) => call('PATCH', '/api/settings', patch),
   setStatus: (id: number, status: string) => call('PATCH', `/api/requests/${id}`, { status }),
+  resolve: (id: number, body: ResolveInput) => call('POST', `/api/requests/${id}/resolve`, body),
   reset: () => call('POST', '/api/reset'),
 };

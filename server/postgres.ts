@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS requests (
   updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS resolution JSONB;
 `;
 
 /** Any fixed number: the one demo thread is locked as a whole. */
@@ -44,7 +45,7 @@ const toMessage = (r: Row): Message => ({
 
 const toRequest = (r: Row): Request => ({
   id: r.id, patientId: r.patient_id, type: r.type, status: r.status, details: r.details,
-  sourceMessageIds: r.source_message_ids, createdAt: r.created_at, updatedAt: r.updated_at,
+  sourceMessageIds: r.source_message_ids, createdAt: r.created_at, updatedAt: r.updated_at, resolution: r.resolution ?? null,
 });
 
 async function save(db: pg.PoolClient, c: StoreChanges) {
@@ -60,14 +61,14 @@ async function save(db: pg.PoolClient, c: StoreChanges) {
   }
   for (const r of c.newRequests) {
     await db.query(
-      'INSERT INTO requests (id, patient_id, type, status, details, source_message_ids, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [r.id, r.patientId, r.type, r.status, JSON.stringify(r.details), JSON.stringify(r.sourceMessageIds), r.createdAt, r.updatedAt],
+      'INSERT INTO requests (id, patient_id, type, status, details, source_message_ids, created_at, updated_at, resolution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [r.id, r.patientId, r.type, r.status, JSON.stringify(r.details), JSON.stringify(r.sourceMessageIds), r.createdAt, r.updatedAt, r.resolution && JSON.stringify(r.resolution)],
     );
   }
   for (const r of c.updatedRequests) {
     await db.query(
-      'UPDATE requests SET status = $2, details = $3, source_message_ids = $4, updated_at = $5 WHERE id = $1',
-      [r.id, r.status, JSON.stringify(r.details), JSON.stringify(r.sourceMessageIds), r.updatedAt],
+      'UPDATE requests SET status = $2, details = $3, source_message_ids = $4, updated_at = $5, resolution = $6 WHERE id = $1',
+      [r.id, r.status, JSON.stringify(r.details), JSON.stringify(r.sourceMessageIds), r.updatedAt, r.resolution && JSON.stringify(r.resolution)],
     );
   }
 }

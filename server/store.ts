@@ -4,8 +4,8 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_NOW, runningClock } from './clock.js';
-import { OPEN_STATUSES, type Details, type RequestStatus, type RequestType } from './requests.js';
-import type { DataStore, Message, NewMessage, Request, Settings } from './types.js';
+import { OPEN_STATUSES, type Details, type RequestType } from './requests.js';
+import type { DataStore, Message, NewMessage, Request, RequestPatch, Settings } from './types.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS messages (
@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS requests (
   details TEXT NOT NULL,
   source_message_ids TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  resolution TEXT
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `;
@@ -44,6 +45,7 @@ const toMessage = (r: Row): Message => ({
 const toRequest = (r: Row): Request => ({
   id: r.id, patientId: r.patient_id, type: r.type, status: r.status, details: JSON.parse(r.details),
   sourceMessageIds: JSON.parse(r.source_message_ids), createdAt: r.created_at, updatedAt: r.updated_at,
+  resolution: r.resolution ? JSON.parse(r.resolution) : null,
 });
 
 export class Store implements DataStore {
@@ -57,6 +59,8 @@ export class Store implements DataStore {
     // Databases created before the phone columns existed.
     const cols = (this.db.prepare('PRAGMA table_info(messages)').all() as Row[]).map((c) => c.name);
     for (const c of ['from_number', 'to_number']) if (!cols.includes(c)) this.db.exec(`ALTER TABLE messages ADD COLUMN ${c} TEXT`);
+    const requestCols = (this.db.prepare('PRAGMA table_info(requests)').all() as Row[]).map((c) => c.name);
+    if (!requestCols.includes('resolution')) this.db.exec('ALTER TABLE requests ADD COLUMN resolution TEXT');
     if (!this.setting('clockSetAt')) this.updateSettings({ now: this.getSettings().now });
   }
 
@@ -118,13 +122,14 @@ export class Store implements DataStore {
     return this.getRequest(Number(info.lastInsertRowid))!;
   }
 
-  updateRequest(id: number, patch: { details?: Details; sourceMessageIds?: number[]; status?: RequestStatus }): Request {
+  updateRequest(id: number, patch: RequestPatch): Request {
     const current = this.getRequest(id);
     if (!current) throw new Error(`request ${id} not found`);
-    this.db.prepare('UPDATE requests SET details = ?, source_message_ids = ?, status = ?, updated_at = ? WHERE id = ?').run(
+    this.db.prepare('UPDATE requests SET details = ?, source_message_ids = ?, status = ?, resolution = ?, updated_at = ? WHERE id = ?').run(
       JSON.stringify(patch.details ?? current.details),
       JSON.stringify(patch.sourceMessageIds ?? current.sourceMessageIds),
       patch.status ?? current.status,
+      JSON.stringify(patch.resolution ?? current.resolution),
       this.now(),
       id,
     );
