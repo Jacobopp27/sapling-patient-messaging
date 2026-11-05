@@ -7,6 +7,8 @@ export interface AppState {
   settings: Settings;
   clock: string;
   claudeAvailable: boolean;
+  /** OpenAI key present (and, on the hosted demo, ALLOW_VOICE=true). */
+  voiceAvailable: boolean;
   /** The hosted demo: this browser has its own thread. */
   hosted: boolean;
   patient: { id: string; name: string; phone: string };
@@ -49,4 +51,18 @@ export const api = {
   setStatus: (id: number, status: string) => call('PATCH', `/api/requests/${id}`, { status }),
   resolve: (id: number, body: ResolveInput) => call('POST', `/api/requests/${id}/resolve`, body),
   reset: () => call('POST', '/api/reset'),
+  // Voice calls
+  startCall: (callId: string) => call('POST', '/api/voice/start', { callId }),
+  sendVoice: (body: string, callId: string) => call('POST', '/api/messages', { author: 'patient', body, callId }),
+  callToken: async (): Promise<{ value: string; expiresAt: number }> => {
+    const res = await fetch('/api/voice/token', { method: 'POST', headers: { 'X-Demo-Thread': THREAD } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
+    return res.json();
+  },
+  /** The clinic's message, spoken exactly (MP3). */
+  speech: async (messageId: number): Promise<Blob> => {
+    const res = await fetch(`/api/voice/speech/${messageId}`, { headers: { 'X-Demo-Thread': THREAD } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
+    return res.blob();
+  },
 };

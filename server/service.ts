@@ -3,6 +3,7 @@ import { runAgent } from './agent/agent.js';
 import { claudeInterpreter, hasClaudeKey } from './agent/claudeInterpreter.js';
 import type { Interpreter } from './agent/interpretation.js';
 import { pendingFromClinicMessage } from './agent/outbound.js';
+import { CALL_GREETING } from './voice.js';
 import { ruleInterpreter } from './agent/ruleInterpreter.js';
 import type { ClinicData } from './data.js';
 
@@ -65,7 +66,24 @@ export class ConversationService {
     return used ? undefined : { pending: offer.meta.pending!, messageId: offer.id };
   }
 
-  receivePatientMessage(body: string, replyTo?: number): Promise<{ inbound: Message; reply: Message }> {
+  /**
+   * A call connects: the clinic's automated greeting, spoken and saved in the thread. It carries
+   * over what the last message was waiting for, so "yes" on the call still answers the clinic's offer.
+   */
+  startCall(callId: string): Message {
+    const previous = this.store.lastOutbound(this.patientId);
+    return this.store.addMessage({
+      patientId: this.patientId,
+      author: 'agent',
+      body: CALL_GREETING,
+      fromNumber: this.numbers.clinic,
+      toNumber: this.numbers.patient,
+      meta: { source: 'general', channel: 'voice', callId, ...(previous?.meta.pending ? { pending: previous.meta.pending } : {}) },
+    });
+  }
+
+  /** `call`: the message was said on a voice call (already transcribed); the reply is spoken back. */
+  receivePatientMessage(body: string, replyTo?: number, call?: { callId: string }): Promise<{ inbound: Message; reply: Message }> {
     const run = async () => {
       const quoted = this.quoted(replyTo);
       const openOffer = this.openOffer();
@@ -77,7 +95,7 @@ export class ConversationService {
         fromNumber: this.numbers.patient,
         toNumber: this.numbers.clinic,
         inReplyTo: quoted?.id ?? previous?.id ?? null,
-        meta: quoted ? { explicitReply: true } : {},
+        meta: { ...(quoted ? { explicitReply: true } : {}), ...(call ? { channel: 'voice' as const, callId: call.callId } : {}) },
       });
       const reply = await runAgent({
         store: this.store,

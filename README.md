@@ -22,7 +22,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (166 tests, about 1 s).
+To check it works without the UI: `npm test` (170 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -76,12 +76,23 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 ### Other commands
 
 ```bash
-npm test             # 166 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 170 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
 npm run typecheck
 ```
+
+## Voice calls (optional)
+
+The phone has a call button. Alex can call the clinic and talk to the same agent:
+
+- **Listening.** The browser opens an OpenAI Realtime *transcription* session over WebRTC (`gpt-4o-mini-transcribe`, server-side turn detection). The server only hands out a short-lived client secret, so the API key never reaches the browser.
+- **Thinking.** Each finished sentence is posted to `/api/messages` like a text, tagged with the call id. The emergency guard, interpreter, handlers and reply guard are exactly the same as for SMS, and the call shows up in the thread and the staff console.
+- **Speaking.** The agent's reply is read aloud word for word by OpenAI text-to-speech (`gpt-4o-mini-tts`). Only messages the clinic stored can be spoken. Talking over the assistant stops it.
+- **Why not speech-to-speech?** A voice model choosing its own words couldn't guarantee the emergency text word for word, or that nothing is promised that the text agent wouldn't. See DECISIONS #32.
+
+To use it locally, put `OPENAI_API_KEY` in `.env` and restart `npm run dev`. Without the key, the call button is disabled. On Vercel it also needs `ALLOW_VOICE=true`.
 
 ## Hosted demo (Vercel + Neon Postgres)
 
@@ -94,13 +105,13 @@ Live at **https://sapling.jacoboposada.com** (also https://sapling-patient-messa
 - **Local stays local.** `npm run dev` still uses SQLite and needs no account, as the spec requires.
 - **Entry point.** `api/index.ts` serves the API; `vercel.json` builds the UI into `web/dist` and routes `/api/*` to the function.
 - **Safety on a public URL:**
-  - Claude mode stays off on Vercel unless `ALLOW_CLAUDE_MODE=true` is set, so a visitor can't spend the key's credits.
+  - Claude mode stays off on Vercel unless `ALLOW_CLAUDE_MODE=true` is set, and voice calls unless `ALLOW_VOICE=true` is set, so a visitor can't spend the keys' credits.
   - **Each visitor has their own conversation.** The browser keeps a random thread id in local storage and sends it with every call (`X-Demo-Thread`). Every Postgres row carries it, and the lock is per thread, so two reviewers never see or block each other. Reset clears only your own thread.
 
 To deploy:
 1. Import the GitHub repo in Vercel (Add New → Project). Keep the settings from `vercel.json`.
 2. Storage → Neon → create a database and connect it to the project. This sets `DATABASE_URL`.
-3. Optional: add `ANTHROPIC_API_KEY`, plus `ALLOW_CLAUDE_MODE=true` if visitors may use Claude mode. Set a spend limit in the Anthropic console first.
+3. Optional: add `ANTHROPIC_API_KEY` and `CLAUDE_MODEL=claude-haiku-5-5`, plus `ALLOW_CLAUDE_MODE=true` if visitors may use Claude mode. For voice calls, add `OPENAI_API_KEY` and `ALLOW_VOICE=true`. Set spend limits in both consoles first.
 4. Settings → Domains → add `sapling.jacoboposada.com`. If the domain's DNS isn't on Vercel, add a CNAME record `sapling` → `cname.vercel-dns.com` at your DNS provider.
 
 ## How it works
@@ -180,6 +191,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
   - The agent assumes one open appointment request and one booked appointment at a time.
   - Clinical questions aren't merged; each one is its own request.
 - **A hosted thread lives in one browser.** Clearing site data or opening another browser starts a new conversation, and there's no way to share a thread or look one up yet.
+- **Voice calls are a demo, not telephony.** The call happens in the browser, not over a phone number, and needs a microphone and an OpenAI key. A turn takes about 2–4 s (transcription, agent, speech), slower than a person. There's no hold music, transfer to staff or voicemail.
 - **Staff outcomes reach Alex only if staff text the update, or when Alex asks.** There's no automatic notification, and only a closed request carries an outcome (no "in progress: called the pharmacy" notes yet).
 
 ## Next two priorities

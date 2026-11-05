@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SCRIPT } from '../../server/script';
 import type { Message } from '../../server/types';
 import { api, type AppState } from './api';
+import { CallScreen } from './Call';
 import { Chat, SENDER, type Outgoing } from './Chat';
 import { StaffConsole } from './StaffConsole';
 
@@ -66,6 +67,7 @@ export function App() {
   const [outgoing, setOutgoing] = useState<Outgoing>();
   const [typing, setTyping] = useState(false);
   const [highlight, setHighlight] = useState<number[]>([]);
+  const [calling, setCalling] = useState(false);
 
   const run = async (fn: () => Promise<AppState>) => {
     setBusy(true);
@@ -181,7 +183,22 @@ export function App() {
                   <strong>Sapling Family Clinic</strong>
                   <small>{typing ? 'typing…' : 'Texts are read during business hours'}</small>
                 </div>
+                <button
+                  className="wa-call-btn"
+                  onClick={() => setCalling(true)}
+                  disabled={!state.voiceAvailable || busy || calling}
+                  aria-label="Call the clinic"
+                  title={state.voiceAvailable ? 'Call the clinic (voice)' : 'Voice calls need an OpenAI key (OPENAI_API_KEY)'}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .57 3.6 1 1 0 0 1-.25 1z" fill="currentColor" /></svg>
+                </button>
               </div>
+              {calling && (
+                <CallScreen
+                  onState={setState}
+                  onClose={() => { setCalling(false); api.state().then(setState).catch(() => undefined); }}
+                />
+              )}
 
               <Chat
                 messages={state.messages}

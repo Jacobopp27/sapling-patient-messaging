@@ -46,7 +46,8 @@ export async function runAgent(input: AgentInput): Promise<Message> {
       patientId: inbound.patientId, author: 'agent', body, inReplyTo: inbound.id,
       // The reply goes back to the number that texted, from the number it was sent to.
       fromNumber: inbound.toNumber ?? '', toNumber: inbound.fromNumber ?? '',
-      meta: { ...meta, requestEvents: tools.events },
+      // A reply on a call stays part of that call.
+      meta: { ...meta, requestEvents: tools.events, ...(inbound.meta.channel ? { channel: inbound.meta.channel, callId: inbound.meta.callId } : {}) },
     });
 
   const emergency = (signals: string[], trace: Omit<Trace, 'tools' | 'guards'>) => {
@@ -91,8 +92,13 @@ export async function runAgent(input: AgentInput): Promise<Message> {
 
   // 3. Decide and act in code. A pending "what's the visit for?" treats Alex's free text as the reason.
   const turn: Turn = { tools, inbound, pending: input.pending, pendingMessageId: input.pendingMessageId, openOffer: input.openOffer };
-  if (input.pending?.kind === 'appointment_reason' && ['unknown', 'thanks', 'affirm'].includes(interpretation.intent)) {
-    turn.reasonOverride = inbound.body.trim();
+  // "To recheck my blood pressure" sounds like scheduling too, so an answer classified as an
+  // appointment preference is the reason unless it only gives a day or time ("Tuesday afternoon").
+  if (input.pending?.kind === 'appointment_reason' && (
+    ['unknown', 'thanks', 'affirm'].includes(interpretation.intent)
+    || (interpretation.intent === 'appointment_preference' && !onlyWhen(inbound.body, interpretation))
+  )) {
+    turn.reasonOverride = asReason(inbound.body);
     interpretation = { ...interpretation, intent: 'appointment_preference' };
   }
   // "Which one do you mean?" → "the physical": continue the change Alex started.
@@ -144,4 +150,17 @@ export async function runAgent(input: AgentInput): Promise<Message> {
       ...(note ? { note } : {}),
     },
   });
+}
+
+/** True when a reply is only about when ("Tuesday afternoon", "any morning works"), not what the visit is for. */
+function onlyWhen(text: string, i: Interpretation): boolean {
+  if (!(i.weekday || i.date || i.time || i.window || i.topic === 'tomorrow')) return false;
+  return !/\b(for|because|about|re-?check|check|physical|follow[- ]?up|exam|test|pain|shot|vaccine|refill|blood|pressure|bp)\b/i.test(text);
+}
+
+/** As a visit reason: "To recheck my blood pressure." → "visit to recheck my blood pressure"; "For a flu shot" → "flu shot". */
+function asReason(text: string): string {
+  const t = text.trim().replace(/[.!]+$/, '').replace(/^(it'?s |it is )/i, '');
+  const verb = t.match(/^to\s+(.+)/i);
+  return (verb ? `visit to ${verb[1]}` : t.replace(/^(for\s+)?((a|an)\s+)?/i, '')).trim() || text.trim();
 }

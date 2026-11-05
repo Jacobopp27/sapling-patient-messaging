@@ -95,6 +95,46 @@ describe('HTTP API', () => {
     expect((await call('PATCH', '/settings', { now: 'tomorrow-ish' })).status).toBe(400);
     expect((await call('PATCH', '/requests/99', { status: 'completed' })).status).toBe(404);
   });
+
+  describe('voice calls', () => {
+    // Only the presence of OPENAI_API_KEY is checked here; nothing in these tests calls OpenAI.
+    const saved = process.env.OPENAI_API_KEY;
+    afterAll(() => { if (saved === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = saved; });
+
+    it('a call is greeted, keeps what the clinic was waiting for, and its replies stay on the call', async () => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      const call = await serve();
+      await call('POST', '/messages', { author: 'clinic', body: SCRIPT[0].body });
+      const started = await (await call('POST', '/voice/start', { callId: 'call-abc123' })).json();
+      expect(started.voiceAvailable).toBe(true);
+      const greeting = started.messages.at(-1);
+      expect(greeting).toMatchObject({ author: 'agent', meta: { channel: 'voice', callId: 'call-abc123' } });
+      expect(greeting.body).toMatch(/automated assistant/);
+      expect(greeting.meta.pending).toEqual(started.messages[0].meta.pending); // the clinic's offer is still open
+
+      const state = await (await call('POST', '/messages', { author: 'patient', body: 'Tuesday afternoon works', callId: 'call-abc123' })).json();
+      const [said, reply] = state.messages.slice(-2);
+      expect(said.meta).toMatchObject({ channel: 'voice', callId: 'call-abc123' });
+      expect(reply.meta).toMatchObject({ channel: 'voice', callId: 'call-abc123' });
+      expect(state.requests[0].details).toMatchObject({ reason: 'BP recheck', date: '2026-11-10' });
+    });
+
+    it('rejects a bad call id, speaks only the clinic\'s own messages, and is off without a key', async () => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      const call = await serve();
+      expect((await call('POST', '/voice/start', {})).status).toBe(400);
+      expect((await call('POST', '/messages', { author: 'patient', body: 'hi', callId: 'x' })).status).toBe(400);
+      expect((await call('POST', '/messages', { author: 'clinic', body: 'hi', callId: 'call-abc123' })).status).toBe(400);
+      await call('POST', '/messages', { author: 'patient', body: 'hello' });
+      expect((await call('GET', '/voice/speech/1')).status).toBe(404); // Alex's message: not ours to speak
+      expect((await call('GET', '/voice/speech/99')).status).toBe(404);
+
+      delete process.env.OPENAI_API_KEY;
+      expect((await (await call('GET', '/state')).json()).voiceAvailable).toBe(false);
+      expect((await call('POST', '/voice/token')).status).toBe(503);
+      expect((await call('POST', '/voice/start', { callId: 'call-abc123' })).status).toBe(503);
+    });
+  });
 });
 
 const PG = process.env.TEST_DATABASE_URL;

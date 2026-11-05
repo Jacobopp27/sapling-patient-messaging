@@ -76,6 +76,23 @@ describe('appointment requests', () => {
     const [r] = svc2.store.listRequests('pt_001');
     expect(r.details).toMatchObject({ reason: 'annual flu shot', date: '2026-11-10', window: 'afternoon' });
   });
+
+  it('a reason that sounds like scheduling is still the reason (the voice-call loop)', async () => {
+    const svc = openService(tempDbFile());
+    expect((await svc.receivePatientMessage('I need to make an appointment.')).reply.body).toMatch(/What's the visit for\?/);
+    const second = await svc.receivePatientMessage('To recheck my blood pressure.');
+    expect(second.reply.body).not.toMatch(/What's the visit for/);
+    expect(svc.store.listRequests('pt_001')).toEqual([]); // no day yet: it asks for one before filing
+    await svc.receivePatientMessage('Tuesday afternoon works');
+    const [r] = svc.store.listRequests('pt_001');
+    expect(r.details).toMatchObject({ reason: 'visit to recheck my blood pressure', date: '2026-11-10', window: 'afternoon' });
+  });
+
+  it('a day alone after "what\'s the visit for?" is still not taken as the reason', async () => {
+    const svc = openService(tempDbFile());
+    await svc.receivePatientMessage('I need to make an appointment.');
+    expect((await svc.receivePatientMessage('Tuesday afternoon')).reply.body).toMatch(/What's the visit for\?/);
+  });
 });
 
 describe('offers to pass a question to staff', () => {

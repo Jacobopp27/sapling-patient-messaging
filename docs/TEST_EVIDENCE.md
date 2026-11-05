@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **166/166 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **170/170 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - `npm run script -- --claude`: the same run with **Claude Haiku 5.5** as the interpreter ([script-run-claude.md](script-run-claude.md)). All 13 agent replies are identical to the local run, including the exact emergency text and the step-12 list.
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
@@ -26,7 +26,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
 
 ## Beyond the script
 
-- **`tests/safety.test.ts`** (29 tests). These try to break the pass/fail rules:
+- **`tests/safety.test.ts`** (30 tests). These try to break the pass/fail rules:
   - Nine paraphrased emergencies, plus an emergency in the middle of the booking flow.
   - The guard runs **before** the model: a model stub is never called.
   - A model-flagged emergency is honoured.
@@ -35,11 +35,13 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - No reply in the whole script trips the reply guard.
   - The reply guard blocks booking, deadline and dosing phrasing.
   - A Claude failure falls back to local rules and records why.
-- **`tests/behavior.test.ts`** (21 tests):
+  - Claude's structured-output schema has no optional fields. With 14 optional fields the API began answering "Schema is too complex" or timing out, so every Claude message quietly fell back to the rules. Found from the why panel in the UI ("Claude interpreter failed, used local rules: Request timed out").
+- **`tests/behavior.test.ts`** (23 tests):
   - The scenario clock: Pacific time, not the machine clock, and the hours answer follows the configured "now".
   - The FAQ text matches the structured hours.
   - Date resolution, including "Thursday" with and without an anchor date.
   - Specific-time requests, repeated changes keeping one request, and asking for a missing reason.
+  - The answer to "What's the visit for?" is the reason even when it sounds like scheduling ("To recheck my blood pressure"). Found on a voice call: the agent asked the same question three times. A day alone ("Tuesday afternoon") still isn't taken as the reason.
   - "yes" or "no" after the Aetna offer.
   - Refill dedupe.
   - A pending offer surviving a restart.
@@ -55,19 +57,21 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - **Automated disclosure.** The first automated reply says it's automated in the text. Later replies don't repeat it, and the emergency text is never changed.
   - **Two requests in one message.** The second is named back, and no script step triggers that notice.
 - **Manual check after these fixes:** in the running app, "Wednesday morning" was refused as Veterans Day and "move my physical to Thursday" created its own card in the staff queue. The existing `data/app.db` picked up the new phone columns on start.
-- **`tests/variations.test.ts`** (55 tests). Messages a reviewer might type instead of the script's wording:
+- **`tests/variations.test.ts`** (58 tests). Messages a reviewer might type instead of the script's wording:
   - Casual emergencies: "my chest feels tight", "I feel like I'm going to pass out", "I can't feel my left arm", blurry vision with a terrible headache, self-harm. Each one gets the exact text and an emergency handoff.
   - Scheduling paraphrases: "tues pm", "nov 12 at 1:30", "the 4pm on thursday", "did you book it?", "can we make it 4pm instead", "I don't need the recheck anymore", "book me tomorrow at 2pm" with no context.
   - Record and FAQ questions: "whens my next appt", "are you open on saturday?", "do you accept blue shield?" (it answers with the plan on file), paying by card, "who is my doctor?", "what medications am I on?", two refill phrasings.
   - What it can't understand fails safe: Spanish, small talk and "a real person" get an offer to pass the message to staff, and nothing is filed.
   - None of these replies claims a booking, promises a time or gives dosing advice.
   - Ruled-out days and times, also found by hand: "2pm works" then "I can't at 3:30pm" keeps 2:00 and records 3:30 as ruled out (before, it moved the request to 3:30). "2pm doesn't work" leaves the other open time. "I can't do Tuesday" takes the day off the request and asks again. A picked open time is said back and stored as the only slot.
-  - Questions about open times, found in Claude mode by hand: "is this week available?", "the current week, not the next" and "are openings for Monday?" are answered from the open slots (none this week or on Monday, next openings Tue/Thu) and file nothing. Before, "are openings for Monday?" filed a Monday request. Run against both interpreters by hand, with the same replies.
+  - Questions about open times, found in Claude mode by hand: "is this week available?", "the current week, not the next" and "are openings for Monday?" are answered from the open slots (none this week or on Monday, next openings Tue/Thu) and file nothing. Before, "are openings for Monday?" filed a Monday request. Run against both interpreters by hand, with the same replies. "Maybe the week of the 16" and "the week of Nov 9th" are answered for that week; "the week of the 3rd" means the next 3rd (Dec 3).
   - A thread found in the live demo: "thursdar 1:30 works", then "book thursday", then "Tuesday afternoon works". The typo is read as Thursday at 1:30 p.m., and a message the agent didn't understand no longer makes it forget the clinic's BP recheck offer and ask what the visit is for.
-- **`tests/hosted.test.ts`** (8 tests). The hosted (Vercel + Neon) path:
+- **`tests/hosted.test.ts`** (10 tests). The hosted (Vercel + Neon) path:
   - The whole script played with a fresh in-memory store per message gives exactly the same messages and requests as the SQLite store.
   - The store reports only what changed, and a Reset as a reset.
   - The HTTP API answers, and rejects bad input with 400 and an unknown request with 404.
+  - Voice calls over the API: the greeting is saved on the call and keeps the clinic's open offer, so "Tuesday afternoon works" said on the call files the BP recheck; Alex's line and the reply carry the call id. A bad call id is a 400, only the clinic's own messages can be spoken (Alex's is a 404), and without `OPENAI_API_KEY` the voice routes answer 503. Nothing in the tests calls OpenAI.
+  - **Manual voice check:** a real call from Safari on the Mac's microphone, in rules mode. Speech was transcribed ("I need to make an appointment.", "To recheck my blood pressure."), went through the agent and was read back. That run found the "What's the visit for?" loop above. Separately, the browser pipeline was driven by puppeteer: client secret 200, OpenAI WebRTC answer 201, transcription session with server VAD, greeting saved and spoken (MP3 200) in about 3 s from the tap. Headless Chrome's fake microphone produced silence, so transcription itself is verified only by the manual call.
   - On real Postgres: the script runs one transaction per message, step 12 is right after a restart (a new connection pool), and there's still exactly one of each request.
   - On real Postgres: what staff resolved ("booked for Thu 1:30") survives a restart, and the new column is added to an existing database.
   - On real Postgres: each visitor's thread is separate. Each has its own messages and ids (both start at 1), and Reset clears only that thread.

@@ -157,6 +157,7 @@ function Bubble({ m, quoted, highlighted, onReply, onJump, whyOpen, onWhy, match
         {quoted && <Quote m={quoted} onClick={() => onJump(quoted.id)} />}
         <span className="wa-text">{m.body}</span>
         <span className="wa-meta">
+          {m.meta.channel === 'voice' && <span className="wa-voice" title="Said on a voice call">call</span>}
           {m.author === 'agent' && <span className="wa-auto" title="Written by the automated assistant">automated</span>}
           {m.author === 'agent' && t && <button type="button" className="wa-why" onClick={onWhy} aria-expanded={whyOpen}>why?</button>}
           {time(m.createdAt)}

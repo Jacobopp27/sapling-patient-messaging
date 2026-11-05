@@ -6,6 +6,7 @@ import express, { type ErrorRequestHandler } from 'express';
 import { hasClaudeKey } from './agent/claudeInterpreter.js';
 import { missingFields, REQUEST_TYPES, type RequestStatus } from './requests.js';
 import { resolveRequest, ResolveError } from './resolutions.js';
+import { createCallToken, hasVoiceKey, speak, VoiceError } from './voice.js';
 import type { ConversationService } from './service.js';
 
 const STATUSES: RequestStatus[] = ['pending_staff', 'in_progress', 'completed', 'cancelled'];
@@ -20,6 +21,8 @@ export interface AppOptions {
 
 /** The browser's thread id (X-Demo-Thread), generated and kept in its local storage. */
 const THREAD_ID = /^[A-Za-z0-9_-]{8,64}$/;
+/** One voice call: every turn said on it carries the same id. */
+const CALL_ID = /^[A-Za-z0-9_-]{6,64}$/;
 
 class HttpError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
@@ -43,6 +46,7 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
       /** The scenario clock right now: the configured time plus real time elapsed since it was set. */
       clock: store.now(),
       claudeAvailable: hasClaudeKey(),
+      voiceAvailable: hasVoiceKey(),
       hosted: Boolean(options.hosted),
       patient: { id: p.patient_id, name: p.name, phone: p.phone },
       messages: store.listMessages(p.patient_id),
@@ -59,13 +63,16 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
   });
 
   app.post('/api/messages', async (req, res) => {
-    const { author, body, replyTo } = req.body ?? {};
+    const { author, body, replyTo, callId } = req.body ?? {};
     if (typeof body !== 'string' || !body.trim()) throw new HttpError(400, 'body is required');
     if (replyTo !== undefined && !Number.isInteger(replyTo)) throw new HttpError(400, 'replyTo must be a message id');
     if (author !== 'clinic' && author !== 'patient') throw new HttpError(400, 'author must be clinic or patient');
+    if (callId !== undefined && (author !== 'patient' || typeof callId !== 'string' || !CALL_ID.test(callId))) {
+      throw new HttpError(400, 'callId must be 6–64 letters, digits, - or _, on a patient message');
+    }
     res.json(await withService(thread(req), async (service) => {
       if (author === 'clinic') service.sendClinicMessage(body.trim(), replyTo);
-      else await service.receivePatientMessage(body.trim(), replyTo);
+      else await service.receivePatientMessage(body.trim(), replyTo, callId ? { callId } : undefined);
       return state(service);
     }));
   });
@@ -105,6 +112,45 @@ export function createApp(withService: WithService, options: AppOptions = {}) {
       }
       return state(service);
     }));
+  });
+
+  // Voice calls (see server/voice.ts). The browser gets a short-lived token to transcribe Alex's speech
+  // with OpenAI directly; each finished sentence is posted to /api/messages with its callId.
+  app.post('/api/voice/token', async (_req, res) => {
+    try {
+      res.json(await createCallToken());
+    } catch (err) {
+      if (err instanceof VoiceError) throw new HttpError(err.status, err.message);
+      throw err;
+    }
+  });
+
+  app.post('/api/voice/start', async (req, res) => {
+    const { callId } = req.body ?? {};
+    if (typeof callId !== 'string' || !CALL_ID.test(callId)) throw new HttpError(400, 'callId is required');
+    if (!hasVoiceKey()) throw new HttpError(503, 'voice calls are not enabled');
+    res.json(await withService(thread(req), async (service) => {
+      service.startCall(callId);
+      return state(service);
+    }));
+  });
+
+  // Speaks one of the clinic's messages in this thread, word for word. Only stored outbound messages
+  // can be spoken, so this can't be used to voice arbitrary text.
+  app.get('/api/voice/speech/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    const text = await withService(thread(req), async ({ store }) => {
+      const m = store.getMessage(id);
+      if (!m || m.direction !== 'outbound') throw new HttpError(404, 'not found');
+      return m.body;
+    });
+    try {
+      const audio = await speak(text);
+      res.set({ 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' }).send(audio);
+    } catch (err) {
+      if (err instanceof VoiceError) throw new HttpError(err.status, err.message);
+      throw err;
+    }
   });
 
   app.post('/api/reset', async (req, res) => {

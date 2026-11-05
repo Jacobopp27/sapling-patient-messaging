@@ -39,6 +39,9 @@ export interface MessageMeta {
   pending?: Pending;
   requestEvents?: RequestEvent[];
   trace?: Trace;
+  /** Said on a voice call (transcribed or spoken) rather than texted; all turns of one call share callId. */
+  channel?: 'voice';
+  callId?: string;
 }
 
 export interface Message {
