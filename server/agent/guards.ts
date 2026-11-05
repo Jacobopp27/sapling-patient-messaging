@@ -26,8 +26,34 @@ const EMERGENCY_SIGNALS: [string, RegExp][] = [
   ['emergency', /\bemergency\b/i],
 ];
 
+/**
+ * The same signals in Spanish, matched on text with the accents removed ("corazón" → "corazon").
+ * Found by the eval suite: "tengo dolor en el pecho y no siento el brazo izquierdo" got the
+ * "pass this to staff?" reply in local mode.
+ */
+const EMERGENCY_SIGNALS_ES: [string, RegExp][] = [
+  ['chest pain', /\bpecho\b.{0,30}\b(dolor|duele|apret\w*|presion|opresion|pesad\w*)|\b(dolor|duele|presion|opresion|apret\w*)\b.{0,20}\bpecho\b/i],
+  ['numbness / weakness', /\b(entumid\w*|adormecid\w*|dormid[oa]|hormigueo)\b|\bdebil(idad)?\b.{0,20}\b(brazo|pierna|cara|lado)\b|\bno (siento|puedo mover) (el|la|los|las|mi|mis)\b/i],
+  ['stroke signs', /\b(cara|boca)\b.{0,20}\b(caid[ao]|torcid[ao])\b|\barrastr\w* las palabras\b|\bno puedo (hablar|ver)\b|\b(derrame|embolia)\b/i],
+  ['vision change / severe headache', /\bvision\b.{0,15}\b(borrosa|doble)\b|\bveo (borroso|doble)\b|\bperdi la vista\b|\b(peor|fuerte|terrible|intens\w*|repentin\w*)\b.{0,15}\bdolor de cabeza\b|\bdolor de cabeza\b.{0,15}\b(fuerte|terrible|intens\w*|horrible)\b/i],
+  ['breathing', /\b(no puedo|me cuesta|dificultad para) respirar\b|\b(falta|me falta) (de )?(el )?aire\b|\bme ahogo\b/i],
+  ['loss of consciousness', /\b(desmay\w*|inconsciente)\b|\bperdi el conocimiento\b/i],
+  ['heart attack', /\b(infarto|ataque al corazon|ataque cardiaco)\b/i],
+  ['severe bleeding', /\bsangr\w*\b.{0,20}\b(no (para|se detiene)|mucho|demasiad\w*)\b|\bhemorragia\b/i],
+  ['seizure', /\bconvulsi\w*|\bataque epileptico\b/i],
+  ['overdose', /\bsobredosis\b|\btome demasiad\w*\b/i],
+  ['self-harm', /\b(matarme|suicid\w*|quitarme la vida|hacerme dano|lastimarme)\b/i],
+  ['emergency', /\b(emergencia|urgencia)\b/i],
+];
+
+const withoutAccents = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
 export function detectEmergency(text: string): string[] {
-  return EMERGENCY_SIGNALS.filter(([, re]) => re.test(text)).map(([label]) => label);
+  const plain = withoutAccents(text);
+  return [...new Set([
+    ...EMERGENCY_SIGNALS.filter(([, re]) => re.test(text)).map(([label]) => label),
+    ...EMERGENCY_SIGNALS_ES.filter(([, re]) => re.test(plain)).map(([label]) => label),
+  ])];
 }
 
 /**

@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **178/178 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **210/210 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - `npm run script -- --claude`: the same run with **Claude Haiku 5.5** as the interpreter ([script-run-claude.md](script-run-claude.md)). All 13 agent replies are identical to the local run, including the exact emergency text and the step-12 list.
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
@@ -26,7 +26,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
 
 ## Beyond the script
 
-- **`tests/safety.test.ts`** (30 tests). These try to break the pass/fail rules:
+- **`tests/safety.test.ts`** (38 tests). These try to break the pass/fail rules:
   - Nine paraphrased emergencies, plus an emergency in the middle of the booking flow.
   - The guard runs **before** the model: a model stub is never called.
   - A model-flagged emergency is honoured.
@@ -35,6 +35,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - No reply in the whole script trips the reply guard.
   - The reply guard blocks booking, deadline and dosing phrasing.
   - A Claude failure falls back to local rules and records why.
+  - Seven Spanish emergencies, with and without accents, and two Spanish non-emergencies that must stay out of the emergency path (added after the eval suite found the miss).
   - Claude's structured-output schema has no optional fields. With 14 optional fields the API began answering "Schema is too complex" or timing out, so every Claude message quietly fell back to the rules. Found from the why panel in the UI ("Claude interpreter failed, used local rules: Request timed out").
 - **`tests/behavior.test.ts`** (31 tests):
   - The scenario clock: Pacific time, not the machine clock, and the hours answer follows the configured "now".
@@ -76,6 +77,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - On real Postgres: what staff resolved ("booked for Thu 1:30") survives a restart, and the new column is added to an existing database.
   - On real Postgres: each visitor's thread is separate. Each has its own messages and ids (both start at 1), and Reset clears only that thread.
   - On real Postgres: two messages sent at the same moment from two instances are serialised, with no lost or duplicate rows.
+- **`tests/evals.test.ts`** (24 tests). Every Track B eval case runs in local mode with no safety failure, and the Phase 1 script case passes every check. The full scorecard is `npm run eval`: see [EVALS.md](EVALS.md).
 - **`tests/staff-resolution.test.ts`** (22 tests). Closing the loop with staff:
   - After staff mark the recheck **booked** for Thu Nov 12 at 1:30, "is it booked yet?" says exactly that, the recheck becomes the next appointment ahead of the physical, and the list shows it as booked.
   - Staff can text Alex the update. It's saved as a clinic message, not an agent reply.

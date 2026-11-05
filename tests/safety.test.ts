@@ -23,6 +23,14 @@ describe('emergency rule', () => {
     'I want to end my life',
     'took too many of my pills',
     'pressure in my chest since lunch',
+    // Spanish, matched with or without accents (found by the eval suite: local mode missed these).
+    'tengo dolor en el pecho y no siento el brazo izquierdo',
+    'me duele mucho el pecho',
+    'no puedo respirar bien',
+    'creo que me está dando un infarto',
+    'me desmayé esta mañana',
+    'tengo la cara caída y no puedo hablar',
+    'quiero quitarme la vida',
   ];
   for (const text of emergencies) {
     it(`"${text}" → exact emergency text only + emergency handoff`, async () => {
@@ -64,6 +72,12 @@ describe('emergency rule', () => {
   it('does not fire on ordinary messages', () => {
     for (const t of SCRIPT.filter((s) => s.step !== 11)) expect(detectEmergency(t.body)).toEqual([]);
   });
+});
+
+it('Spanish words that are not emergencies stay out of the emergency path', async () => {
+  const { detectEmergency } = await import('../server/agent/guards');
+  expect(detectEmergency('sí, el martes en la tarde')).toEqual([]);
+  expect(detectEmergency('necesito más pastillas de la presión')).toEqual([]);
 });
 
 describe('no clinical advice', () => {
