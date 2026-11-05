@@ -1,6 +1,7 @@
 // The pipeline for one inbound message:
 //   emergency guard (code) → interpreter (rules | Claude) → handler (code + tools) → reply guard (code)
 // The interpreter only understands; everything that acts or speaks about safety is code.
+import { isRealDate, notADate } from '../clock.js';
 import type { ClinicData } from '../data.js';
 
 import { AgentTools } from '../tools.js';
@@ -116,7 +117,11 @@ export async function runAgent(input: AgentInput): Promise<Message> {
   if (p?.kind === 'reschedule_time' && interpretation.intent === 'appointment_preference') {
     interpretation = { ...interpretation, intent: 'change_appointment', action: 'reschedule', target: 'booked' };
   }
-  let result: HandlerResult = HANDLERS[interpretation.intent](turn, interpretation);
+  // "Nov 31" isn't a date. Say so and keep waiting for the same answer, instead of letting the
+  // calendar roll it over to Dec 1 and filing that (found by the eval suite).
+  let result: HandlerResult = interpretation.date && !isRealDate(interpretation.date)
+    ? { body: `${notADate(interpretation.date)} What day works for you?`, source: 'clarifying', pending: input.pending }
+    : HANDLERS[interpretation.intent](turn, interpretation);
 
   // One intent per message: anything else Alex asked is named back, never dropped silently.
   const also = (interpretation.also ?? []).map((x) => ALSO_LABEL[x]).filter(Boolean);

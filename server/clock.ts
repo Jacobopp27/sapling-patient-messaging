@@ -73,6 +73,21 @@ export function inWindow(time: string, window: DayWindow): boolean {
 }
 
 /** "Tuesday, Nov 10" (add the year when it isn't the current one). */
+/** "2026-11-31" is not a date: JavaScript would quietly roll it over to Dec 1. */
+export function isRealDate(date: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return false;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]);
+}
+
+/** "There's no November 31: November has 30 days." */
+export function notADate(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const month = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long' });
+  return `There's no ${month} ${d}: ${month} has ${new Date(Date.UTC(y, m, 0)).getUTCDate()} days.`;
+}
+
 export function formatDate(date: string, today?: string): string {
   const withYear = today !== undefined && date.slice(0, 4) !== today.slice(0, 4);
   return utc(date).toLocaleDateString('en-US', {

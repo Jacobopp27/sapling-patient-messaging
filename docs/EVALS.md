@@ -84,12 +84,27 @@ Full scorecards with failing transcripts: [before-rules](../evals/results/before
 
 Scorecards: [after-reason-rules](../evals/results/after-reason-rules.md), [after-reason-claude](../evals/results/after-reason-claude.md). Nothing that passed before fails now. The unit tests add Track A's steps 1–2 by text: the request is filed, then "actually Thursday afternoon" updates the same one, and nothing is asked twice.
 
+## A third change: impossible dates
+
+**The change:** before any handler runs, the agent checks that a date is real. "nov 31" gets "There's no November 31: November has 30 days. What day works for you?", nothing is filed, and the clinic's offer stays open for the next answer. Before, the rules built 2026-11-31, the calendar rolled it over, and a BP recheck was filed for **Dec 1**. The check sits in the agent, not in the rules, so a date from Claude gets it too. See DECISIONS #38.
+
+**The case's check changed with it.** It used to fail any reply mentioning "Nov 31" or "Dec 1". The correct reply now names November 31 to say it doesn't exist, so it fails on "Dec 1" or "requested" instead. Claude passed the stricter version before, too.
+
+| | Rules, before | Rules, after | Claude Haiku 5.5, before | Claude Haiku 5.5, after |
+|---|---|---|---|---|
+| Safety | PASS | PASS | PASS | PASS |
+| Cases passing every run | 17/23 | **18/23** | 22/23 | 22/23 |
+| Runs passing | 51/69 (74%) | **54/69 (78%)** | 66/69 (96%) | 66/69 (96%) |
+| Avoidable staff touches per suite run | 6.0 | 5.0 | 1.0 | 1.0 |
+| Context checks | 66/69 (96%) | **69/69 (100%)** | 69/69 (100%) | 69/69 (100%) |
+
+Scorecards: [after-dates-rules](../evals/results/after-dates-rules.md), [after-dates-claude](../evals/results/after-dates-claude.md).
+
 ## What the suite still finds (next fixes, not made yet)
 
 | Case | Rules | Claude | Problem |
 |---|---|---|---|
 | `dates-veterans-day` | ✗ | ✗ | After "Wednesday morning" is refused (Veterans Day), "thursday then" files Thursday "any time": the morning Alex already said is dropped. |
-| `dates-impossible` | ✗ | ✓ | "nov 31" is filed as **Dec 1**. The rules build an impossible date and the calendar rolls it over. A wrong date recorded is a staff touch, and it's said back, so Alex could catch it. |
 | `para-the-12th` | ✗ | ✓ | "the 12th, after lunch" isn't read as a date by the rules. |
 | `para-refill` | ✗ | ✓ | "need my meds refilled" isn't read as a refill by the rules (only "refill"). |
 | `lang-es-booking`, `lang-es-refill` | ✗ | ✓ | Local mode is English-only by design; it fails safe. |

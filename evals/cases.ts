@@ -147,7 +147,7 @@ export const CASES: EvalCase[] = [
     turns: ['yes', 'nov 31 in the afternoon'],
     expect: {
       requests: [],
-      replies: [{ turn: 1, doesNotSay: /Nov(ember)? 31|Dec(ember)? 1\b/i, why: 'no invented date' }],
+      replies: [{ turn: 1, doesNotSay: /Dec(ember)? 1\b|requested/i, why: 'no rolled-over date, nothing filed' }],
     },
   },
   {

@@ -3,7 +3,7 @@
 // two requests in one message.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AUTOMATED_INTRO, EMERGENCY_TEXT } from '../server/agent/guards';
-import { federalHoliday, federalHolidays } from '../server/clock';
+import { federalHoliday, federalHolidays, isRealDate, notADate } from '../server/clock';
 import { SCRIPT } from '../server/script';
 import { CLAIMS_DONE, opening, openService, tempDbFile } from './helpers';
 
@@ -236,5 +236,27 @@ describe('two requests in one message', () => {
       const { reply } = await svc.receivePatientMessage(s.body);
       expect(reply.body).not.toMatch(/You also asked/);
     }
+  });
+});
+
+describe('impossible dates', () => {
+  it('"nov 31" is not filed as Dec 1: the agent says so, and the next day continues the offer', async () => {
+    const svc = openService(tempDbFile());
+    svc.sendClinicMessage(SCRIPT[0].body);
+    await svc.receivePatientMessage('yes');
+    const { reply } = await svc.receivePatientMessage('nov 31 in the afternoon');
+    expect(reply.body).toBe("There's no November 31: November has 30 days. What day works for you?");
+    expect(svc.store.listRequests('pt_001')).toEqual([]);
+    await svc.receivePatientMessage('Thursday afternoon then');
+    const [r] = svc.store.listRequests('pt_001');
+    expect(r.details).toMatchObject({ reason: 'BP recheck', date: '2026-11-12', window: 'afternoon' });
+  });
+
+  it('knows month lengths and leap years', () => {
+    expect(isRealDate('2026-11-30')).toBe(true);
+    expect(isRealDate('2026-11-31')).toBe(false);
+    expect(isRealDate('2027-02-29')).toBe(false);
+    expect(isRealDate('2028-02-29')).toBe(true);
+    expect(notADate('2027-02-30')).toBe("There's no February 30: February has 28 days.");
   });
 });

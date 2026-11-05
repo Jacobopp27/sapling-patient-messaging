@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **212/212 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **214/214 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - `npm run script -- --claude`: the same run with **Claude Haiku 5.5** as the interpreter ([script-run-claude.md](script-run-claude.md)). All 13 agent replies are identical to the local run, including the exact emergency text and the step-12 list.
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
@@ -48,7 +48,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - A pending offer surviving a restart.
   - Swipe to reply: a "yes" quoted onto an older clinic offer continues that offer, invalid reply ids are ignored, and staff can quote a patient message.
   - The supplied data files are never written.
-- **`tests/edge-cases.test.ts`** (18 tests). Things the script doesn't spell out but the flow needs:
+- **`tests/edge-cases.test.ts`** (20 tests). Things the script doesn't spell out but the flow needs:
   - **The booked physical vs the recheck request.** "Move my physical to Thursday" files an `appointment_change` and leaves the recheck unchanged. A follow-up day updates that change, not the recheck. "Cancel my physical" files a cancellation and quotes the policy. "Cancel my appointment" asks which one. "Cancel the recheck" notes it on that request. A policy question still files nothing.
   - **Staff closing a request.** After "completed", "is it booked yet?" says completed, without claiming a booking and without "you have no request". The list shows it under "Already handled by staff". After "cancelled", the agent offers to request again, and "yes" starts a new request.
   - **Closed days.** The 2026 federal holidays, including observed dates. "Wednesday" (Nov 11, Veterans Day) and "actually Saturday" are refused, the existing request is kept and Alex is asked for another day. The hours answer on Nov 11 says closed.
@@ -57,6 +57,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - **Declined outreach.** "No thanks" to the recheck offer files an `outreach_declined` note, which isn't listed back to Alex.
   - **Automated disclosure.** The first automated reply says it's automated in the text. Later replies don't repeat it, and the emergency text is never changed.
   - **Two requests in one message.** The second is named back, and no script step triggers that notice.
+  - **Impossible dates** (found by the eval suite). "nov 31 in the afternoon" gets "There's no November 31: November has 30 days." and files nothing, where it used to file Dec 1. "Thursday afternoon then" continues the clinic's offer. Month lengths and leap years are checked.
 - **Manual check after these fixes:** in the running app, "Wednesday morning" was refused as Veterans Day and "move my physical to Thursday" created its own card in the staff queue. The existing `data/app.db` picked up the new phone columns on start.
 - **`tests/variations.test.ts`** (58 tests). Messages a reviewer might type instead of the script's wording:
   - Casual emergencies: "my chest feels tight", "I feel like I'm going to pass out", "I can't feel my left arm", blurry vision with a terrible headache, self-harm. Each one gets the exact text and an emergency handoff.
