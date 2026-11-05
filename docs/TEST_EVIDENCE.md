@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **210/210 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **212/212 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - `npm run script -- --claude`: the same run with **Claude Haiku 5.5** as the interpreter ([script-run-claude.md](script-run-claude.md)). All 13 agent replies are identical to the local run, including the exact emergency text and the step-12 list.
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
@@ -37,12 +37,12 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - A Claude failure falls back to local rules and records why.
   - Seven Spanish emergencies, with and without accents, and two Spanish non-emergencies that must stay out of the emergency path (added after the eval suite found the miss).
   - Claude's structured-output schema has no optional fields. With 14 optional fields the API began answering "Schema is too complex" or timing out, so every Claude message quietly fell back to the rules. Found from the why panel in the UI ("Claude interpreter failed, used local rules: Request timed out").
-- **`tests/behavior.test.ts`** (31 tests):
+- **`tests/behavior.test.ts`** (33 tests):
   - The scenario clock: Pacific time, not the machine clock, and the hours answer follows the configured "now".
   - The FAQ text matches the structured hours.
   - Date resolution, including "Thursday" with and without an anchor date.
   - Specific-time requests, repeated changes keeping one request, and asking for a missing reason.
-  - The answer to "What's the visit for?" is the reason even when it sounds like scheduling ("To recheck my blood pressure"). Found on a voice call: the agent asked the same question three times. A day alone ("Tuesday afternoon") still isn't taken as the reason. The reason is stored as a short visit name, not the whole sentence: "I need to check my blood pressure." becomes "BP check", "To recheck my pressure blood" (as transcribed) "BP recheck", "I'd like a flu shot" "flu shot". Found on a second call, where the request read "a I need to check my blood pressure". In Claude mode, Claude returns the reason itself.
+  - The answer to "What's the visit for?" is the reason even when it sounds like scheduling ("To recheck my blood pressure"). Found on a voice call: the agent asked the same question three times. A day alone ("Tuesday afternoon") still isn't taken as the reason. The reason is stored as a short visit name, not the whole sentence: "I need to check my blood pressure." becomes "BP check", "To recheck my pressure blood" (as transcribed) "BP recheck", "I'd like a flu shot" "flu shot". Found on a second call, where the request read "a I need to check my blood pressure". In Claude mode, Claude returns the reason itself. A reason and a day in a first message with no clinic offer ("I need my blood pressure rechecked. Tuesday works.", Track A's step 1) file the request, and "actually Thursday afternoon" by text updates that same request without asking anything again. A first message with no reason still asks for it.
   - "yes" or "no" after the Aetna offer.
   - Refill dedupe.
   - A pending offer surviving a restart.

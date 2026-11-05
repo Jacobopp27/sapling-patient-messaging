@@ -5,7 +5,7 @@ The agent answers whatever the supplied data covers (patient record, clinic FAQ,
 `pending_staff` requests for everything else. It never books, approves or gives clinical advice.
 
 - **Phase 1:** complete. All 13 script steps pass in tests and in the running app, including a real process restart.
-- **Phase 2: Track B (evals).** `npm run eval` runs the script plus 22 variations of my own, 3 times each, and prints a scorecard: safety (a hard fail), avoidable staff touches and context use. It ran on both interpreters, with a before/after of one change: the emergency guard now recognises Spanish, which turned local mode's only safety failure into a pass. See [docs/EVALS.md](docs/EVALS.md).
+- **Phase 2: Track B (evals).** `npm run eval` runs the script plus 22 variations of my own, 3 times each, and prints a scorecard: safety (a hard fail), avoidable staff touches and context use. It ran on both interpreters, with before/after scorecards for two changes. First, the emergency guard now recognises Spanish, which turned local mode's only safety failure into a pass. Second, a visit reason in a first message is used, which takes Claude mode to 96% of runs and every context check. See [docs/EVALS.md](docs/EVALS.md).
 - **Beyond the track:** voice calls from Alex's phone (OpenAI Realtime for listening, text-to-speech for speaking), through the same agent. It's an extra, not a second track; see "Voice calls".
 - **Live demo:** https://sapling.jacoboposada.com (each visitor gets their own conversation; see "Hosted demo").
 - **Runs with no API key.** Local mode is the default.
@@ -23,7 +23,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (210 tests, about 1 s).
+To check it works without the UI: `npm test` (212 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -78,7 +78,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 
 ```bash
 npm run eval         # Track B scorecard (add -- --agent claude or both)
-npm test             # 210 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 212 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
@@ -185,7 +185,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
   - A message that rules one thing out and picks another ("I can't do Tuesday, Thursday works") only reads the first part.
 - **Bare weekdays are a best guess.** Answering the clinic's offer, "Thursday" means the Thursday with openings (Nov 12). With no offer in play, it means the next Thursday (Nov 5). The date is always said back so Alex can correct it, but the agent doesn't ask when the wording is ambiguous.
 - **Local emergency detection is a broad keyword list.** It's tuned to over-trigger, but it can miss unusual phrasing. Claude mode adds a semantic `possible_emergency` check on top, but never instead of the keywords.
-- **The eval suite still finds failures** ([docs/EVALS.md](docs/EVALS.md), last section). In both modes: a reason and a day in a first message with no clinic offer ("I need my blood pressure rechecked. Tuesday works.") asks for the reason, and a window said before a refused holiday is dropped. In local mode only: "nov 31" is filed as Dec 1, plus phrasings the rules don't read ("the 12th", "meds refilled", Spanish requests). Claude Haiku 5.5 passes 91% of runs against 70% for the rules, with no safety failures in either.
+- **The eval suite still finds failures** ([docs/EVALS.md](docs/EVALS.md), last section). In both modes, a window said before a refused holiday is dropped. In local mode only, "nov 31" is filed as Dec 1, and some phrasings aren't read ("the 12th", "meds refilled", Spanish requests). Claude Haiku 5.5 passes 96% of runs against 74% for the rules, with no safety failures in either.
 - **Closed days are weekends and federal holidays only.** Clinic-specific closures aren't in the data.
 - **No blood-pressure thresholds.** Emergencies are detected from symptoms, not numbers like 180/120. Choosing thresholds is a clinical decision that needs sign-off, so the readings go to a clinician as a clinical question.
 - **Simplified scope:**
@@ -198,7 +198,7 @@ See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md). It maps every Phase 1 step t
 
 ## Next two priorities
 
-1. **Fix what the eval suite finds, one change and one scorecard at a time.** First the reason in a first message (it's also Track A's step 1), then the impossible date rolling over. Then grow the suite from real threads and make Claude the default interpreter once its scorecard stays ahead over a larger set.
+1. **Fix what the eval suite finds, one change and one scorecard at a time.** Next: the impossible date rolling over, then the window lost after a refused day. Then grow the suite from real threads and make Claude the default interpreter once its scorecard stays ahead over a larger set.
 2. **Make the staff side production-shaped.**
    - An audit log of every request change (who, when, what).
    - Split multi-intent messages into separate requests.
