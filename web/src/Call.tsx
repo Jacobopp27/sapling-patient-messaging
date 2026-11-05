@@ -1,9 +1,13 @@
 // A voice call to the clinic, inside Alex's phone. OpenAI Realtime transcribes what Alex says (over
 // WebRTC, with server-side turn detection); each finished sentence goes to the same agent as a text,
-// and the agent's reply is read aloud word for word. Speaking over the assistant stops it.
+// and the agent's reply is read aloud word for word. The microphone is closed while the assistant
+// speaks: its voice comes out of the speakers through a plain <audio> element, which browsers don't
+// always echo-cancel, so the mic heard it and sent it to the agent as if Alex had said it. Tapping
+// the avatar interrupts. Anything that still sounds like the clinic's own words is dropped as echo.
 import { useEffect, useRef, useState } from 'react';
 import type { Message } from '../../server/types';
 import { api, type AppState } from './api';
+import { soundsLikeEcho } from './echo';
 
 type Phase = 'connecting' | 'listening' | 'hearing' | 'thinking' | 'speaking' | 'ended' | 'failed';
 
@@ -19,6 +23,7 @@ const PHASE_LABEL: Record<Phase, string> = {
 
 interface Line { who: 'Alex' | 'Clinic'; text: string; final: boolean }
 
+
 export function CallScreen({ onState, onClose }: { onState: (s: AppState) => void; onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>('connecting');
   const [error, setError] = useState<string>();
@@ -28,8 +33,8 @@ export function CallScreen({ onState, onClose }: { onState: (s: AppState) => voi
   const [level, setLevel] = useState(0);
   const call = useRef<{
     pc?: RTCPeerConnection; mic?: MediaStream; audio?: HTMLAudioElement; ctx?: AudioContext;
-    queue: Promise<void>; callId: string; closed: boolean;
-  }>({ queue: Promise.resolve(), callId: `call-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, closed: false });
+    queue: Promise<void>; callId: string; closed: boolean; muted: boolean; spoken: string[];
+  }>({ queue: Promise.resolve(), callId: `call-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, closed: false, muted: false, spoken: [] });
   const transcript = useRef<HTMLDivElement>(null);
 
   const say = (who: Line['who'], text: string, final = true) => setLines((all) => {
@@ -38,23 +43,34 @@ export function CallScreen({ onState, onClose }: { onState: (s: AppState) => voi
     return last && !last.final && last.who === who ? [...all.slice(0, -1), { who, text, final }] : [...all, { who, text, final }];
   });
 
-  /** Read one of the clinic's messages aloud, exactly as saved. */
+  /** The mic is open unless Alex muted it or the assistant is talking. */
+  const setMicOpen = (open: boolean) => {
+    const c = call.current;
+    c.mic?.getAudioTracks().forEach((t) => { t.enabled = open && !c.muted; });
+  };
+
+  /** Read one of the clinic's messages aloud, exactly as saved. The mic is closed meanwhile (no echo). */
   const speakMessage = async (m: Message) => {
     const c = call.current;
     if (c.closed) return;
     say('Clinic', m.body);
+    c.spoken = [...c.spoken.slice(-3), m.body];
     setPhase('speaking');
     const blob = await api.speech(m.id);
     if (c.closed) return;
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     c.audio = audio;
+    setMicOpen(false);
     await new Promise<void>((resolve) => {
       audio.onended = audio.onpause = () => resolve();
       audio.play().catch(() => resolve());
     });
     URL.revokeObjectURL(url);
     if (c.audio === audio) c.audio = undefined;
+    // A short tail, so the end of the speech still in the room isn't picked up.
+    await new Promise((r) => setTimeout(r, 250));
+    if (!c.closed) setMicOpen(true);
     // Alex may have already started talking over it ('hearing'); don't step on that.
     if (!c.closed) setPhase((p) => (p === 'speaking' ? 'listening' : p));
   };
@@ -116,7 +132,11 @@ export function CallScreen({ onState, onClose }: { onState: (s: AppState) => voi
             });
           } else if (ev.type === 'conversation.item.input_audio_transcription.completed') {
             const text = ev.transcript ?? '';
-            if (text.trim()) {
+            if (text.trim() && soundsLikeEcho(text, c.spoken)) {
+              // The mic heard the clinic's own voice: not something Alex said.
+              setLines((all) => (all.at(-1)?.final === false ? all.slice(0, -1) : all));
+              setPhase((p) => (p === 'hearing' ? 'listening' : p));
+            } else if (text.trim()) {
               say('Alex', text.trim());
               handleTurn(text);
             } else {
@@ -167,9 +187,12 @@ export function CallScreen({ onState, onClose }: { onState: (s: AppState) => voi
 
   const toggleMute = () => {
     const next = !muted;
-    call.current.mic?.getAudioTracks().forEach((t) => { t.enabled = !next; });
+    call.current.muted = next;
+    setMicOpen(!call.current.audio);
     setMuted(next);
   };
+  /** Tap the avatar while the assistant talks: stop it and listen. */
+  const interrupt = () => call.current.audio?.pause();
   const hangUp = () => {
     const c = call.current;
     c.closed = true;
@@ -184,9 +207,14 @@ export function CallScreen({ onState, onClose }: { onState: (s: AppState) => voi
   return (
     <div className="call" role="dialog" aria-label="Voice call with Sapling Family Clinic">
       <div className="call-top">
-        <div className={`call-avatar ${phase}`} style={{ '--level': muted ? 0 : level } as React.CSSProperties}>S</div>
+        {phase === 'speaking' ? (
+          <button className={`call-avatar ${phase}`} onClick={interrupt} aria-label="Interrupt the assistant">S</button>
+        ) : (
+          <div className={`call-avatar ${phase}`} style={{ '--level': muted ? 0 : level } as React.CSSProperties}>S</div>
+        )}
         <strong>Sapling Family Clinic</strong>
         <span className="call-phase" aria-live="polite">{PHASE_LABEL[phase]}{live && phase !== 'connecting' ? ` · ${clock}` : ''}</span>
+        {phase === 'speaking' && <span className="call-tip">Tap the S to interrupt</span>}
         {error && <span className="call-error" role="alert">{error}</span>}
       </div>
 

@@ -193,6 +193,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); }
 .call-avatar.speaking { box-shadow: 0 0 0 14px rgba(255, 255, 255, .16); }
 .call-top strong { font-size: 19px; }
 .call-phase { font-size: 14px; opacity: .85; font-variant-numeric: tabular-nums; }
+.call-tip { font-size: 12px; opacity: .6; }
+button.call-avatar { border: none; padding: 0; cursor: pointer; font-family: inherit; }
+button.call-avatar:hover { background: #fff; }
 .call-error { font-size: 12.5px; color: #ffd2cc; max-width: 280px; }
 .call-transcript { flex: 1; overflow-y: auto; margin: 22px 0 18px; display: flex; flex-direction: column; gap: 10px; }
 .call-hint { margin: auto 0; text-align: center; font-size: 13.5px; opacity: .7; }

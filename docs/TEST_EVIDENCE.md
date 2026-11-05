@@ -1,7 +1,7 @@
 # Test evidence: Phase 1
 
 **Results:**
-- `npm test`: **214/214 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
+- `npm test`: **216/216 passing** across 7 files. Two of them need `TEST_DATABASE_URL` and were run against a local PostgreSQL 14; without it they're skipped. Raw output: [test-output.txt](test-output.txt).
 - `npm run script`: transcript of a real run on a fresh SQLite file, with the store closed and reopened before step 12: [script-run.md](script-run.md).
 - `npm run script -- --claude`: the same run with **Claude Haiku 5.5** as the interpreter ([script-run-claude.md](script-run-claude.md)). All 13 agent replies are identical to the local run, including the exact emergency text and the step-12 list.
 - **Manual run in the UI:** steps 0–11 were sent through the browser. The API process was then killed (the DB held 23 messages and 4 requests) and started again with `npm run dev`. Step 12 was sent after that, and the reply matched the test.
@@ -79,6 +79,7 @@ Every step below is one `it(...)` in `tests/script.test.ts`. They run in order i
   - On real Postgres: each visitor's thread is separate. Each has its own messages and ids (both start at 1), and Reset clears only that thread.
   - On real Postgres: two messages sent at the same moment from two instances are serialised, with no lost or duplicate rows.
 - **`tests/evals.test.ts`** (24 tests). Every Track B eval case runs in local mode with no safety failure, and the Phase 1 script case passes every check. The full scorecard is `npm run eval`: see [EVALS.md](EVALS.md).
+- **`tests/echo.test.ts`** (2 tests). The voice call's echo filter: the greeting heard back through the mic on a real call is dropped; Alex's own sentences, even ones that reuse a few of the clinic's words, are kept.
 - **`tests/staff-resolution.test.ts`** (22 tests). Closing the loop with staff:
   - After staff mark the recheck **booked** for Thu Nov 12 at 1:30, "is it booked yet?" says exactly that, the recheck becomes the next appointment ahead of the physical, and the list shows it as booked.
   - Staff can text Alex the update. It's saved as a clinic message, not an agent reply.

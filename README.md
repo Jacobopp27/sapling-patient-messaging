@@ -23,7 +23,7 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on port 3001, and everything is saved in `data/app.db`.
 
-To check it works without the UI: `npm test` (214 tests, about 1 s).
+To check it works without the UI: `npm test` (216 tests, about 1 s).
 
 ## Walk through the scenario (about 5 minutes)
 
@@ -78,7 +78,7 @@ The thread looks like a WhatsApp chat seen from Alex's phone: Alex on the right,
 
 ```bash
 npm run eval         # Track B scorecard (add -- --agent claude or both)
-npm test             # 214 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
+npm test             # 216 tests: script steps 0–12, safety, behaviour, edge cases, variations, hosted store
 npm run script       # runs steps 0–12 on a fresh DB (restart before 12) → docs/script-run.md
 npm run script -- --claude   # same, with the Claude interpreter (needs a key)
 npm run reset        # clears data/app.db
@@ -91,7 +91,7 @@ The phone has a call button. Alex can call the clinic and talk to the same agent
 
 - **Listening.** The browser opens an OpenAI Realtime *transcription* session over WebRTC (`gpt-4o-mini-transcribe`, server-side turn detection). The server only hands out a short-lived client secret, so the API key never reaches the browser.
 - **Thinking.** Each finished sentence is posted to `/api/messages` like a text, tagged with the call id. The emergency guard, interpreter, handlers and reply guard are exactly the same as for SMS, and the call shows up in the thread and the staff console.
-- **Speaking.** The agent's reply is read aloud word for word by OpenAI text-to-speech (`gpt-4o-mini-tts`). Only messages the clinic stored can be spoken. Talking over the assistant stops it.
+- **Speaking.** The agent's reply is read aloud word for word by OpenAI text-to-speech (`gpt-4o-mini-tts`). Only messages the clinic stored can be spoken. The microphone is closed while the assistant talks, so its voice can't come back through the mic as Alex's words; tap the avatar to interrupt.
 - **Why not speech-to-speech?** A voice model choosing its own words couldn't guarantee the emergency text word for word, or that nothing is promised that the text agent wouldn't. See DECISIONS #32.
 
 To use it locally, put `OPENAI_API_KEY` in `.env` and restart `npm run dev`. Without the key, the call button is disabled. On Vercel it also needs `ALLOW_VOICE=true`.
