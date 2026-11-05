@@ -3,7 +3,7 @@
 
 
  Test Files  8 passed (8)
-      Tests  210 passed | 4 skipped (214)
-   Start at  19:21:01
-   Duration  500ms (tests 49%, import 43%, transform 8%, worker 1%)
+      Tests  212 passed | 4 skipped (216)
+   Start at  19:23:50
+   Duration  578ms (import 46%, tests 46%, transform 7%, worker 1%)
 

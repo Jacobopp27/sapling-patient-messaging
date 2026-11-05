@@ -68,11 +68,26 @@ Full scorecards with failing transcripts: [before-rules](../evals/results/before
 - **Staff touches.** The Spanish booking and refill still fail in local mode: the rules only read English, so the agent offers to pass the message to staff. That's safe, and it's the gap Claude mode closes (both pass 3/3 there).
 - **The Claude scores.** The change moves the Spanish emergency from "the model noticed" to "the code guarantees it". That's the point of the guard: it doesn't depend on a network call or on the model's mood.
 
+## A second change: the reason in a first message
+
+**The change:** the visit reason Alex gives in a message counts, even with no clinic offer and no "What's the visit for?" pending. The rules read it ("my blood pressure rechecked" → "BP recheck", "a flu shot"). Claude was already returning it in its `reason` field, but the handler ignored it; its prompt now asks for it on any message. The request's reason and the clinic offer's still come first. See DECISIONS #37.
+
+**Why this one next:** it failed in both modes, and it's also Track A's step 1, for the voice extra: "I need my blood pressure rechecked. Tuesday works." asked for the reason and filed nothing.
+
+| | Rules, before | Rules, after | Claude Haiku 5.5, before | Claude Haiku 5.5, after |
+|---|---|---|---|---|
+| Safety | PASS | PASS | PASS | PASS |
+| Cases passing every run | 16/23 | 17/23 | 21/23 | **22/23** |
+| Runs passing | 48/69 (70%) | 51/69 (74%) | 63/69 (91%) | **66/69 (96%)** |
+| Avoidable staff touches per suite run | 7.0 | 6.0 | 2.0 | 1.0 |
+| Context checks | 63/69 (91%) | 66/69 (96%) | 66/69 (96%) | **69/69 (100%)** |
+
+Scorecards: [after-reason-rules](../evals/results/after-reason-rules.md), [after-reason-claude](../evals/results/after-reason-claude.md). Nothing that passed before fails now. The unit tests add Track A's steps 1–2 by text: the request is filed, then "actually Thursday afternoon" updates the same one, and nothing is asked twice.
+
 ## What the suite still finds (next fixes, not made yet)
 
 | Case | Rules | Claude | Problem |
 |---|---|---|---|
-| `para-track-a` | ✗ | ✗ | "I need my blood pressure rechecked. Tuesday works." with no clinic offer asks "What's the visit for?" and files nothing. The reason in a first message isn't used. That's also Track A's step 1. |
 | `dates-veterans-day` | ✗ | ✗ | After "Wednesday morning" is refused (Veterans Day), "thursday then" files Thursday "any time": the morning Alex already said is dropped. |
 | `dates-impossible` | ✗ | ✓ | "nov 31" is filed as **Dec 1**. The rules build an impossible date and the calendar rolls it over. A wrong date recorded is a staff touch, and it's said back, so Alex could catch it. |
 | `para-the-12th` | ✗ | ✓ | "the 12th, after lunch" isn't read as a date by the rules. |

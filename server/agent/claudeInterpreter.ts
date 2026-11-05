@@ -70,7 +70,7 @@ Intents:
 If the patient rules a day or time out ("I can't at 3:30", "Tuesday doesn't work"), put it in avoid_time or avoid_weekday, never in time or weekday.
 If the message asks for more than one thing, put the main one in intent and the others in also. If any part is a
 clinical_question, intent must be clinical_question.
-When the clinic is waiting for the visit reason, put it in reason as a short noun phrase ("I need to check my blood pressure" → "BP check"), not the whole sentence.
+Whenever a message says what a visit is for, put it in reason as a short noun phrase, not the whole sentence: "I need to check my blood pressure" → "BP check", "I need my blood pressure rechecked. Tuesday works." → "BP recheck" (with weekday tuesday).
 Use null for every field the message doesn't give.
 Set possible_emergency true if the message could describe a medical emergency (chest pain, trouble breathing, stroke signs, fainting, severe bleeding, self-harm), even if phrased casually.
 The message may be in any language; classify it the same way.`;

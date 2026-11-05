@@ -79,6 +79,14 @@ function extractWeekOf(text: string, today: string): string | undefined {
   return `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+/** What a visit is for, when the message names it in words a clinic uses ("my blood pressure rechecked", "a flu shot"). */
+function extractReason(text: string): string | undefined {
+  if (/\b(blood pressure|pressure|bp)\b/i.test(text) && /\b(re-?check(ed)?|check(ed)?|follow[- ]?up|looked at|monitor(ed)?)\b/i.test(text)) {
+    return /\bre-?check|follow[- ]?up/i.test(text) ? 'BP recheck' : 'BP check';
+  }
+  return text.match(/\b(flu shot|covid (shot|vaccine|booster)|vaccine|check-?up|skin check|blood (work|test))\b/i)?.[0].toLowerCase();
+}
+
 function extractWindow(text: string): 'morning' | 'afternoon' | undefined {
   if (/\bmorning\b/i.test(text)) return 'morning';
   if (/\bafternoon\b|\bevening\b|after lunch|\bpm\b|\bp\.m\./i.test(text)) return 'afternoon';
@@ -224,7 +232,8 @@ function interpretOne(ctx: InterpreterContext): Interpretation {
 
   const when = schedulingFields(t, ctx.today);
   if (Object.keys(when).length || /\b(appointment|book|schedule|reschedule|come in|recheck|visit)\b/i.test(t)) {
-    return { intent: 'appointment_preference', ...when };
+    const reason = extractReason(t);
+    return { intent: 'appointment_preference', ...when, ...(reason ? { reason } : {}) };
   }
 
   if (/^(yes|yeah|yep|yup|sure|ok|okay|please|please do|sounds good|y|si|sí)\b/i.test(t)) return { intent: 'affirm' };

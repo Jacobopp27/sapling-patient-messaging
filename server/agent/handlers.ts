@@ -110,6 +110,35 @@ function openings(turn: Turn, provider: string, skip: { weekday?: string } = {})
   return options.length ? ` ${shortName(provider)} currently has openings on ${options.join(' and ')}.` : '';
 }
 
+/**
+ * Alex's answer to "What's the visit for?" as a short visit reason staff can read, not the whole sentence:
+ * "I need to check my blood pressure." → "BP check"; "To recheck my BP" → "BP recheck";
+ * "I'd like a flu shot" → "flu shot"; "I want to talk about my knee" → "visit to talk about my knee".
+ */
+export function asReason(text: string): string {
+  let t = text.trim().replace(/[.!?]+$/, '').trim();
+  const lead = [
+    /^(so|well|um+|uh+|yeah|yes|ok(ay)?|hi|hello)\b,?\s*/i, // filler
+    /^(i|we)\s*(really\s+)?(need|want|wanna|would like|'d like|have|was hoping|am hoping|'m hoping)\s*/i, // "I need", "I'd like"
+    /^(i'?m|i am)\s+(calling|coming in|writing)\s*/i,
+    /^(it'?s|it is|the visit is|that'?s|this is)\s*/i,
+    /^(to\s+)?(make|book|schedule|get|have)\s+(an?\s+)?(appointment|visit)\s*/i, // "to book an appointment for …"
+  ];
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const re of lead) if (re.test(t)) { t = t.replace(re, ''); changed = true; }
+  }
+  // Blood pressure visits get the clinic's own name for them.
+  if (/\b(pressure|bp)\b/i.test(t) && /\b(re-?check|follow[- ]?up|check|monitor|look at|test|reading)/i.test(t)) {
+    return /\bre-?check|follow[- ]?up/i.test(t) ? 'BP recheck' : 'BP check';
+  }
+  const verb = t.match(/^to\s+(.+)/i);
+  if (verb) return `visit to ${verb[1]}`;
+  t = t.replace(/^(for|about)\s+/i, '').replace(/^(an?|the)\s+/i, '');
+  if (/^(check|see|talk|discuss|get|have|look|follow|review|renew|update)\b/i.test(t)) return `visit to ${t}`;
+  return t || text.trim();
+}
+
 /** "a BP recheck", "an annual physical", "a visit to …". */
 function withArticle(noun: string): string {
   return /^(an?|the)\s/i.test(noun) ? noun : `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
@@ -198,7 +227,10 @@ function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
   const offerMessageId = fromLast ? turn.pendingMessageId : turn.openOffer?.messageId;
   const fromReasonPrompt = pending?.kind === 'appointment_reason' ? pending : undefined;
 
-  const reason = turn.reasonOverride ?? (existing?.details.reason as string | undefined) ?? offer?.reason;
+  // A reason Alex gave in this message ("I need my blood pressure rechecked. Tuesday works.") counts
+  // too, after the request's and the clinic offer's: those are the clinic's own words.
+  const reason = turn.reasonOverride ?? (existing?.details.reason as string | undefined) ?? offer?.reason
+    ?? (i.reason ? asReason(i.reason) : undefined);
   const provider = (existing?.details.provider as string | undefined) ?? offer?.provider ?? patient.last_visit.provider;
   const context = (existing?.details.context as string | undefined) ?? offer?.context;
   // Link the clinic's offer (and Alex's "yes") to the request, so staff see where it came from.

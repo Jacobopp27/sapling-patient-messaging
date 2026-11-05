@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { asReason } from '../server/agent/agent';
+import { asReason } from '../server/agent/handlers';
 import { localNow, resolveWeekday } from '../server/clock';
 import { BUSINESS_HOURS, DATA_DIR, loadClinicData } from '../server/data';
 import { SCRIPT } from '../server/script';
@@ -100,6 +100,24 @@ describe('appointment requests', () => {
     ['annual flu shot', 'annual flu shot'],
   ])('the reason in "%s" is "%s", not the whole sentence', (said, reason) => {
     expect(asReason(said)).toBe(reason);
+  });
+
+  it('a reason and a day in a first message, with no clinic offer, file the request (Track A steps 1–2)', async () => {
+    const svc = openService(tempDbFile());
+    const first = await svc.receivePatientMessage('I need my blood pressure rechecked. Tuesday works.');
+    expect(first.reply.body).not.toMatch(/What's the visit for/);
+    const [r] = svc.store.listRequests('pt_001');
+    expect(r.details).toMatchObject({ reason: 'BP recheck', provider: 'Dr. Priya Lee', date: '2026-11-10' });
+    // The change updates that request and asks nothing Alex already said.
+    const second = await svc.receivePatientMessage('actually Thursday afternoon');
+    expect(second.reply.body).not.toMatch(/What's the visit for|\?$/);
+    expect(svc.store.listRequests('pt_001')).toHaveLength(1);
+    expect(svc.store.listRequests('pt_001')[0].details).toMatchObject({ reason: 'BP recheck', date: '2026-11-12', window: 'afternoon' });
+  });
+
+  it('a first message with no reason still asks for it', async () => {
+    const svc = openService(tempDbFile());
+    expect((await svc.receivePatientMessage('can I come in Tuesday afternoon?')).reply.body).toMatch(/What's the visit for\?/);
   });
 
   it('a day alone after "what\'s the visit for?" is still not taken as the reason', async () => {
