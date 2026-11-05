@@ -98,7 +98,7 @@ export async function runAgent(input: AgentInput): Promise<Message> {
     ['unknown', 'thanks', 'affirm'].includes(interpretation.intent)
     || (interpretation.intent === 'appointment_preference' && !onlyWhen(inbound.body, interpretation))
   )) {
-    turn.reasonOverride = asReason(inbound.body);
+    turn.reasonOverride = (interpretation.reason && asReason(interpretation.reason)) || asReason(inbound.body);
     interpretation = { ...interpretation, intent: 'appointment_preference' };
   }
   // "Which one do you mean?" → "the physical": continue the change Alex started.
@@ -158,9 +158,31 @@ function onlyWhen(text: string, i: Interpretation): boolean {
   return !/\b(for|because|about|re-?check|check|physical|follow[- ]?up|exam|test|pain|shot|vaccine|refill|blood|pressure|bp)\b/i.test(text);
 }
 
-/** As a visit reason: "To recheck my blood pressure." → "visit to recheck my blood pressure"; "For a flu shot" → "flu shot". */
-function asReason(text: string): string {
-  const t = text.trim().replace(/[.!]+$/, '').replace(/^(it'?s |it is )/i, '');
+/**
+ * Alex's answer to "What's the visit for?" as a short visit reason staff can read, not the whole sentence:
+ * "I need to check my blood pressure." → "BP check"; "To recheck my BP" → "BP recheck";
+ * "I'd like a flu shot" → "flu shot"; "I want to talk about my knee" → "visit to talk about my knee".
+ */
+export function asReason(text: string): string {
+  let t = text.trim().replace(/[.!?]+$/, '').trim();
+  const lead = [
+    /^(so|well|um+|uh+|yeah|yes|ok(ay)?|hi|hello)\b,?\s*/i, // filler
+    /^(i|we)\s*(really\s+)?(need|want|wanna|would like|'d like|have|was hoping|am hoping|'m hoping)\s*/i, // "I need", "I'd like"
+    /^(i'?m|i am)\s+(calling|coming in|writing)\s*/i,
+    /^(it'?s|it is|the visit is|that'?s|this is)\s*/i,
+    /^(to\s+)?(make|book|schedule|get|have)\s+(an?\s+)?(appointment|visit)\s*/i, // "to book an appointment for …"
+  ];
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const re of lead) if (re.test(t)) { t = t.replace(re, ''); changed = true; }
+  }
+  // Blood pressure visits get the clinic's own name for them.
+  if (/\b(pressure|bp)\b/i.test(t) && /\b(re-?check|follow[- ]?up|check|monitor|look at|test|reading)/i.test(t)) {
+    return /\bre-?check|follow[- ]?up/i.test(t) ? 'BP recheck' : 'BP check';
+  }
   const verb = t.match(/^to\s+(.+)/i);
-  return (verb ? `visit to ${verb[1]}` : t.replace(/^(for\s+)?((a|an)\s+)?/i, '')).trim() || text.trim();
+  if (verb) return `visit to ${verb[1]}`;
+  t = t.replace(/^(for|about)\s+/i, '').replace(/^(an?|the)\s+/i, '');
+  if (/^(check|see|talk|discuss|get|have|look|follow|review|renew|update)\b/i.test(t)) return `visit to ${t}`;
+  return t || text.trim();
 }

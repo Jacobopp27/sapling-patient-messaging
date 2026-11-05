@@ -110,9 +110,14 @@ function openings(turn: Turn, provider: string, skip: { weekday?: string } = {})
   return options.length ? ` ${shortName(provider)} currently has openings on ${options.join(' and ')}.` : '';
 }
 
+/** "a BP recheck", "an annual physical", "a visit to …". */
+function withArticle(noun: string): string {
+  return /^(an?|the)\s/i.test(noun) ? noun : `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
+}
+
 function askForTime(turn: Turn, reason: string, provider: string, context: string | undefined, sourceMessageIds: number[]): HandlerResult {
   return {
-    body: `Great, I'll request a ${reason} with ${provider} for you. What day and time work best for you?${openings(turn, provider)}`,
+    body: `Great, I'll request ${withArticle(reason)} with ${provider} for you. What day and time work best for you?${openings(turn, provider)}`,
     source: 'open_slots',
     pending: { kind: 'appointment_time', reason, provider, context, sourceMessageIds },
   };
@@ -256,7 +261,7 @@ function appointmentPreference(turn: Turn, i: Interpretation): HandlerResult {
       : ` I don't see an open time with ${provider} then, so staff will review options with your preference in mind.`;
   const body = existing
     ? `Updated: your ${reason} request is now for ${when}, with ${provider}.${slotText} It's still one request, and it's still pending staff review, not booked. ${NOT_MONITORED}`
-    : `Got it. I've requested a ${reason} with ${provider} for ${endSentence(when)}${slotText} This is a request, not a booking: it's pending staff review. ${NOT_MONITORED}`;
+    : `Got it. I've requested ${withArticle(reason)} with ${provider} for ${endSentence(when)}${slotText} This is a request, not a booking: it's pending staff review. ${NOT_MONITORED}`;
   return { body, source: 'staff_handoff' };
 }
 

@@ -26,6 +26,7 @@ const FIELDS: Record<string, Record<string, unknown>> = {
   time: { type: 'string', description: 'HH:MM 24h, only if the patient named a specific time' },
   topic: { type: 'string', description: `For clinic_info one of: ${FAQ_TOPICS.join(', ')}. For record_info one of: ${RECORD_TOPICS.join(', ')}. For not_in_data a short description of what was asked.` },
   medication: { type: 'string' },
+  reason: { type: 'string', description: 'What a visit is for, as a short noun phrase a clinic would write ("BP recheck", "flu shot", "knee pain"), only if the message says it' },
   readings: { type: 'array', items: { type: 'string' } },
   period: { type: 'string' },
   week: { type: 'string', description: 'For availability_question: "this", "next", or YYYY-MM-DD of a day in the week asked about ("the week of the 16th")' },
@@ -69,6 +70,7 @@ Intents:
 If the patient rules a day or time out ("I can't at 3:30", "Tuesday doesn't work"), put it in avoid_time or avoid_weekday, never in time or weekday.
 If the message asks for more than one thing, put the main one in intent and the others in also. If any part is a
 clinical_question, intent must be clinical_question.
+When the clinic is waiting for the visit reason, put it in reason as a short noun phrase ("I need to check my blood pressure" → "BP check"), not the whole sentence.
 Use null for every field the message doesn't give.
 Set possible_emergency true if the message could describe a medical emergency (chest pain, trouble breathing, stroke signs, fainting, severe bleeding, self-harm), even if phrased casually.
 The message may be in any language; classify it the same way.`;

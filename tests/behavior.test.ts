@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { asReason } from '../server/agent/agent';
 import { localNow, resolveWeekday } from '../server/clock';
 import { BUSINESS_HOURS, DATA_DIR, loadClinicData } from '../server/data';
 import { SCRIPT } from '../server/script';
@@ -85,7 +86,20 @@ describe('appointment requests', () => {
     expect(svc.store.listRequests('pt_001')).toEqual([]); // no day yet: it asks for one before filing
     await svc.receivePatientMessage('Tuesday afternoon works');
     const [r] = svc.store.listRequests('pt_001');
-    expect(r.details).toMatchObject({ reason: 'visit to recheck my blood pressure', date: '2026-11-10', window: 'afternoon' });
+    expect(r.details).toMatchObject({ reason: 'BP recheck', date: '2026-11-10', window: 'afternoon' });
+  });
+
+  it.each([
+    ['I need to check my blood pressure.', 'BP check'],
+    ['To recheck my pressure blood.', 'BP recheck'],
+    ['I want a follow-up on my BP', 'BP recheck'],
+    ["I'd like a flu shot", 'flu shot'],
+    ["It's for my annual physical", 'my annual physical'],
+    ['I want to talk about my knee', 'visit to talk about my knee'],
+    ['So I need to make an appointment for a skin check', 'skin check'],
+    ['annual flu shot', 'annual flu shot'],
+  ])('the reason in "%s" is "%s", not the whole sentence', (said, reason) => {
+    expect(asReason(said)).toBe(reason);
   });
 
   it('a day alone after "what\'s the visit for?" is still not taken as the reason', async () => {
