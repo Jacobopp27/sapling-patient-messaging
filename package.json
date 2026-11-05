@@ -11,6 +11,7 @@
     "dev:web": "vite",
     "test": "vitest run",
     "script": "tsx scripts/run-script.ts",
+    "eval": "tsx scripts/eval.ts",
     "reset": "tsx scripts/reset.ts",
     "typecheck": "tsc --noEmit"
   },
